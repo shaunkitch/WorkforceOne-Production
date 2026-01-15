@@ -84,8 +84,8 @@ function SiteCard({ site, orgId }: { site: any, orgId: string }) {
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold">Checkpoints</span>
-                        <Button variant="outline" size="xs" className="h-6 text-xs" onClick={() => setOpenCheckpoint(true)}>
-                            <Plus className="h-3 w-3 mr-1" /> Add
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setOpenCheckpoint(true)}>
+                            <Plus className="h-4 w-4" />
                         </Button>
                     </div>
 
