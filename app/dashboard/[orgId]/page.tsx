@@ -108,24 +108,9 @@ async function StatsCards({ orgId }: { orgId: string }) {
       .eq("organization_id", orgId),
     supabase
       .from("submissions")
-      .select("*", { count: "exact", head: true })
-      // Use the 'exists' logic or join if RLS allows, but for count we might need a direct query or rpc if policies restrict.
-      // However, the policy "Members can view submissions of their organization's forms" uses EXISTS. 
-      // COUNTing on the table directly with that policy might be slow or tricky if not optimized, but should work.
-      // Actually, to filter by organization_id for submissions, we need to join forms.
-      // Supabase client filters operate on the table being selected.
-      // We can't easily filter submissions by org_id directly without embedding.
-      // Let's defer submissions count for now or use a join.
-      .not("id", "is", null) // Just a dummy filter to trigger count if we rely on RLS to filter to org.
-    // Wait, RLS filters ROWS, but we need to ensure we stick to the current org.
-    // If the user belongs to multiple orgs, Select * from submissions might return submissions from ALL orgs they are in.
-    // So we MUST filter by form.organization_id.
-    // .eq("forms.organization_id", orgId) // This doesn't work directly in standard postgrest without 'select(..., forms!inner(...))'
+      .select("*, forms!inner(organization_id)", { count: "exact", head: true })
+      .eq("forms.organization_id", orgId)
   ]);
-
-  // Correct approach for submissions count:
-  // Since we can't easily count with deep filter in simple head request, let's just count forms for now 
-  // and maybe Total Views if we had that.
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -147,9 +132,9 @@ async function StatsCards({ orgId }: { orgId: string }) {
           <MousePointerClick className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">-</div>
+          <div className="text-2xl font-bold">{submissionsCount || 0}</div>
           <p className="text-xs text-muted-foreground">
-            Analytics coming soon
+            Total submissions across all forms
           </p>
         </CardContent>
       </Card>

@@ -12,6 +12,18 @@ export async function assignForm(formId: string, userId: string) {
     const { data: form } = await supabase.from("forms").select("organization_id").eq("id", formId).single();
     if (!form) throw new Error("Form not found");
 
+    // RBAC Check: Ensure user has permission to assign forms
+    const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", form.organization_id)
+        .eq("user_id", user.id)
+        .single();
+
+    if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
+        throw new Error("Insufficient permissions to assign forms");
+    }
+
     console.log(`[assignForm] Assigning form ${formId} to user ${userId}`);
 
     // Check if assignment already exists
@@ -91,9 +103,24 @@ export async function assignFormToGroup(formId: string, groupId: string) {
 
     const supabase = createClient();
 
-    // Get form info for revalidation
+    // Get form info for revalidation and permission check
     const { data: form } = await supabase.from("forms").select("organization_id").eq("id", formId).single();
     if (!form) throw new Error("Form not found");
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    // RBAC Check
+    const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", form.organization_id)
+        .eq("user_id", user.id)
+        .single();
+
+    if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
+        throw new Error("Insufficient permissions to assign forms");
+    }
 
     // Prepare batch insert
     // First, get existing assignments for this form to avoid duplicates
