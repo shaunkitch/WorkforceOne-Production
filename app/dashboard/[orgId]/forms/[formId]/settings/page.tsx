@@ -31,7 +31,17 @@ export default function SettingsPage({
     const handleDelete = () => {
         startTransition(async () => {
             try {
-                await deleteForm(params.formId);
+                const result = await deleteForm(params.formId);
+
+                if (!result.success) {
+                    toast({
+                        title: "Error",
+                        description: result.error || "Failed to delete form",
+                        variant: "destructive"
+                    });
+                    return;
+                }
+
                 toast({ title: "Deleted", description: "Form deleted successfully." });
                 router.push(`/dashboard/${params.orgId}`);
             } catch (error: any) {

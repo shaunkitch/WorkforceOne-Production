@@ -9,10 +9,12 @@ export async function getFormStats(formId: string) {
 
     // We can assume RLS protects the counts, but explicit check is good practice
     // For now, let's just count
-    const { count: submissions } = await supabase
-        .from("form_submissions")
+    const { count, error } = await supabase
+        .from("submissions")
         .select("*", { count: "exact", head: true })
         .eq("form_id", formId);
+
+    const submissions = count || 0;
 
     // If we had a view or visits table we could calculate rate
     const visits = 0; // Placeholder

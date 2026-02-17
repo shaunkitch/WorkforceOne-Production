@@ -1,12 +1,24 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function logAction(orgId: string, action: string, target: string, details: any = {}) {
+export async function logAction(
+    orgId: string,
+    action: string,
+    target: string,
+    details: any = {},
+    meta: {
+        tableName?: string;
+        recordId?: string;
+        previousData?: any;
+        newData?: any;
+    } = {}
+) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) return; // Can't log if no user (or system action handling needed)
+    if (!user) return;
 
     try {
         await supabase.from("audit_logs").insert({
@@ -14,11 +26,96 @@ export async function logAction(orgId: string, action: string, target: string, d
             actor_id: user.id,
             action: action,
             target_resource: target,
-            details: details
+            details: details,
+            table_name: meta.tableName,
+            record_id: meta.recordId,
+            previous_data: meta.previousData,
+            new_data: meta.newData
         });
     } catch (e) {
         console.error("Failed to log action:", e);
     }
+}
+
+export async function revertChange(logId: string) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    // Fetch log
+    const { data: log, error: logError } = await supabase
+        .from("audit_logs")
+        .select("*")
+        .eq("id", logId)
+        .single();
+
+    if (logError || !log) throw new Error("Log not found or access denied");
+
+    // Check permission (Admin only)
+    const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", log.organization_id)
+        .eq("user_id", user.id)
+        .single();
+
+    if (!membership || !["owner", "admin"].includes(membership.role)) {
+        throw new Error("Insufficient permissions to revert changes");
+    }
+
+    if (!log.table_name || !log.record_id) {
+        throw new Error("This action cannot be automatically reverted (missing table/record info).");
+    }
+
+    // Revert logic based on Action
+    // Action format assumption: "Updated User", "Created Form", etc. 
+    // Ideally we'd store a strict 'type' enum like 'UPDATE', 'INSERT', 'DELETE' in 'action' column
+    // But 'action' column is currently human readable text sometimes.
+    // Let's rely on `previous_data` and `new_data`.
+
+    let revertAction = "";
+
+    // Case 1: Was an INSERT (new_data exists, prev is null) -> DELETE it
+    if (log.new_data && !log.previous_data) {
+        const { error } = await supabase
+            .from(log.table_name)
+            .delete()
+            .eq("id", log.record_id);
+
+        if (error) throw new Error("Failed to revert (delete): " + error.message);
+        revertAction = "REVERT_INSERT";
+    }
+    // Case 2: Was a DELETE (prev exists, new is null) -> INSERT it back
+    else if (log.previous_data && !log.new_data) {
+        const { error } = await supabase
+            .from(log.table_name)
+            .insert(log.previous_data);
+
+        if (error) throw new Error("Failed to revert (restore): " + error.message);
+        revertAction = "REVERT_DELETE";
+    }
+    // Case 3: Was an UPDATE (both exist) -> UPDATE to prev
+    else if (log.previous_data && log.new_data) {
+        const { error } = await supabase
+            .from(log.table_name)
+            .update(log.previous_data)
+            .eq("id", log.record_id);
+
+        if (error) throw new Error("Failed to revert (update): " + error.message);
+        revertAction = "REVERT_UPDATE";
+    } else {
+        throw new Error("Ambiguous change state, cannot revert safely.");
+    }
+
+    // Log the Revert itself
+    await logAction(
+        log.organization_id,
+        `Reverted: ${log.action}`,
+        log.target_resource,
+        { originalLogId: logId, type: revertAction }
+    );
+
+    return { success: true };
 }
 
 export async function getAuditLogs(orgId: string) {

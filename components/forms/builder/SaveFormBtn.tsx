@@ -15,7 +15,17 @@ export default function SaveFormBtn({ id }: { id: string }) {
     const updateFormContent = async () => {
         try {
             const jsonContent = JSON.parse(JSON.stringify(elements)); // Ensure serializable
-            await updateForm(id, { content: jsonContent });
+            const result = await updateForm(id, { content: jsonContent });
+
+            if (!result.success) {
+                toast({
+                    title: "Error",
+                    description: result.error || "Something went wrong",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             toast({
                 title: "Success",
                 description: "Your form has been saved",

@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 
 export async function assignForm(formId: string, userId: string) {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) throw new Error("Unauthorized");
 
     // Verify creator permissions
@@ -80,8 +81,19 @@ import { getTeamMembers } from "@/lib/actions/workforce";
 
 export async function getUserAssignments() {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+    let user = null;
+    try {
+        const { data } = await supabase.auth.getSession();
+        user = data.session?.user;
+    } catch (error) {
+        console.error("[getUserAssignments] Auth/Network Error:", error);
+        return [];
+    }
+
+    if (!user) {
+        console.warn("[getUserAssignments] No user found via getUser");
+        throw new Error("Unauthorized");
+    }
 
     const { data: assignments } = await supabase
         .from("form_assignments")
@@ -107,7 +119,8 @@ export async function assignFormToGroup(formId: string, groupId: string) {
     const { data: form } = await supabase.from("forms").select("organization_id").eq("id", formId).single();
     if (!form) throw new Error("Form not found");
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) throw new Error("Unauthorized");
 
     // RBAC Check
@@ -157,7 +170,8 @@ export async function removeAssignment(assignmentId: string) {
     const supabase = createClient();
     console.log(`[removeAssignment] Removing assignment ${assignmentId}`);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     if (!user) throw new Error("Unauthorized");
 
     // We need to know the formId/orgId to revalidate path. 

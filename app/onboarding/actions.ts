@@ -13,9 +13,14 @@ const createOrganizationSchema = z.object({
 export async function createOrganization(prevState: any, formData: FormData) {
     const supabase = createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    let user = null;
+    try {
+        const { data } = await supabase.auth.getUser();
+        user = data.user;
+    } catch (error) {
+        console.error("createOrganization Auth Error:", error);
+        return { error: "Authentication failed. Please try again." };
+    }
 
     if (!user) {
         return {

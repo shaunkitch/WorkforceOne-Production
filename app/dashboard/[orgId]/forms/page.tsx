@@ -54,9 +54,24 @@ async function FormsList({ orgId }: { orgId: string }) {
         );
     }
 
+    // Fetch submission counts for each form
+    const formsWithStats = await Promise.all(
+        forms.map(async (form) => {
+            const { count } = await supabase
+                .from("submissions")
+                .select("*", { count: "exact", head: true })
+                .eq("form_id", form.id);
+
+            return {
+                ...form,
+                submission_count: count || 0
+            };
+        })
+    );
+
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {forms.map((form) => (
+            {formsWithStats.map((form) => (
                 <Card key={form.id} className="hover:shadow-md transition-shadow">
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -77,8 +92,7 @@ async function FormsList({ orgId }: { orgId: string }) {
                     </CardHeader>
                     <CardContent>
                         <div className="text-sm text-muted-foreground">
-                            {/* Views/Submissions counts could go here */}
-                            0 submissions
+                            {form.submission_count} submissions
                         </div>
                     </CardContent>
                     <CardFooter className="flex justify-between">

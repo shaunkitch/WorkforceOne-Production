@@ -48,7 +48,13 @@ export default function DesignerElementWrapper({ element }: DesignerElementWrapp
         transition: draggable.transition,
     };
 
-    const DesignerElement = FormElements[element.type].designerComponent;
+    const DesignerElementComponent = FormElements[element.type]?.designerComponent;
+
+    if (!DesignerElementComponent) {
+        return <div className="p-4 bg-red-100 text-red-500">Unknown element type: {element.type}</div>;
+    }
+
+    const DesignerElement = DesignerElementComponent;
 
     return (
         <div

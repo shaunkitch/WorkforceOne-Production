@@ -22,6 +22,8 @@ export interface Database {
           storage_used: number
           brand_color: string | null
           logo_url: string | null
+          currency: string | null
+          features: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -37,6 +39,8 @@ export interface Database {
           storage_used?: number
           brand_color?: string | null
           logo_url?: string | null
+          currency?: string | null
+          features?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -52,6 +56,8 @@ export interface Database {
           storage_used?: number
           brand_color?: string | null
           logo_url?: string | null
+          currency?: string | null
+          features?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -111,30 +117,48 @@ export interface Database {
           updated_at?: string
         }
       }
-      form_submissions: {
+      submissions: {
         Row: {
           id: string
           created_at: string
           form_id: string
-          content: string
-          signature_url: string | null
+          user_id: string | null
+          assignment_id: string | null
+          visit_id: string | null
+          client_id: string | null
+          data: Json | null
           location: Json | null
+          signature_url: string | null
+          status: string | null
+          submitted_at: string | null
         }
         Insert: {
           id?: string
           created_at?: string
           form_id: string
-          content: string
-          signature_url?: string | null
+          user_id?: string | null
+          assignment_id?: string | null
+          visit_id?: string | null
+          client_id?: string | null
+          data?: Json | null
           location?: Json | null
+          signature_url?: string | null
+          status?: string | null
+          submitted_at?: string | null
         }
         Update: {
           id?: string
           created_at?: string
           form_id?: string
-          content?: string
-          signature_url?: string | null
+          user_id?: string | null
+          assignment_id?: string | null
+          visit_id?: string | null
+          client_id?: string | null
+          data?: Json | null
           location?: Json | null
+          signature_url?: string | null
+          status?: string | null
+          submitted_at?: string | null
         }
       }
       audit_logs: {

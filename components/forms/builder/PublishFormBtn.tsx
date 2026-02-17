@@ -23,7 +23,17 @@ export default function PublishFormBtn({ id, isPublished }: { id: string, isPubl
 
     const publish = async () => {
         try {
-            await publishForm(id);
+            const result = await publishForm(id);
+
+            if (!result.success) {
+                toast({
+                    title: "Error",
+                    description: result.error || "Something went wrong",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             toast({
                 title: "Success",
                 description: "Your form is now available to the public",

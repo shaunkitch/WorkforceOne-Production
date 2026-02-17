@@ -12,23 +12,47 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const router = useRouter()
   const supabase = createClient()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (error) {
-      console.error(error)
-      alert(error.message)
-    } else {
-      router.push("/dashboard")
+    setLoading(true)
+    setError(null)
+
+    try {
+      console.log("Attempting login for:", email)
+
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error("Missing Supabase configuration")
+      }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        console.error("Supabase Auth Error:", authError)
+        setError(authError.message)
+      } else {
+        console.log("Login successful, redirecting...")
+        router.push("/dashboard")
+        router.refresh()
+      }
+    } catch (err: any) {
+      console.error("Unexpected Login Error:", err)
+      setError(err.message || "An unexpected error occurred")
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
     <div className="flex h-screen items-center justify-center">
-      <div className="w-full max-w-sm space-y-4">
+      <form
+        onSubmit={(e) => { e.preventDefault(); handleLogin(); }}
+        className="w-full max-w-sm space-y-4"
+      >
         <div className="text-center">
           <h1 className="text-3xl font-bold">Login</h1>
           <p className="text-muted-foreground">
@@ -41,6 +65,7 @@ export default function LoginPage() {
             id="email"
             type="email"
             placeholder="m@example.com"
+            autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -51,15 +76,19 @@ export default function LoginPage() {
           <Input
             id="password"
             type="password"
+            autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <Button onClick={handleLogin} className="w-full">
-          Login
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </Button>
-      </div>
+        {error && (
+          <p className="text-sm text-red-500 text-center">{error}</p>
+        )}
+      </form>
     </div>
   )
 }

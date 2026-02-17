@@ -9,7 +9,11 @@ export type ElementType =
     | "TextAreaField"
     | "DateField"
     | "SelectField"
-    | "CheckboxField";
+    | "CheckboxField"
+    | "SignatureField"
+    | "LocationField"
+    | "ImageUploadField"
+    | "BarcodeField";
 
 export type FormElement = {
     id: string;

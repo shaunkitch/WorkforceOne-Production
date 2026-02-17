@@ -50,6 +50,7 @@ export async function createUser(orgId: string, data: {
     role: "admin" | "editor" | "viewer";
     teamId?: string;
     hourlyRate?: number;
+    bankDetails?: any;
 }) {
     const supabase = createClient();
     const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -58,18 +59,18 @@ export async function createUser(orgId: string, data: {
     // 1. Create Auth User using Admin Client
     const adminSupabase = createAdminClient();
 
-    // Check if user exists first to avoid error? 
-    // createUser logic in Supabase admin handles "already exists" by throwing usually but we can try invite or create.
-    // We'll use createUser with a temporary password or auto-confirm.
-    // Since we don't have a password input, we'll Generate a random one and maybe email it?
-    // OR we use inviteUserByEmail which sends an invite link.
-    // The user asked to "Create users... not let them register first".
-    // Usually that means "I set the password" or "I send them an invite".
-    // Let's use inviteUserByEmail as it's cleaner for "onboarding".
+    // Auto-generate Employee Number
+    // Get current count of members to determine next number
+    // Note: This isn't perfectly race-condition proof without a sequence or locks, 
+    // but sufficient for this scale.
+    const { count } = await supabase
+        .from("organization_members")
+        .select("*", { count: 'exact', head: true })
+        .eq("organization_id", orgId);
 
-    // But wait, if we use inviteUserByEmail, they DO register (set their own password).
-    // If the requirement is "not let them register first", maybe they mean "I want to Provision the account".
-    // Let's generate a temporary password.
+    const nextNum = (count || 0) + 1;
+    const employeeNumber = `EMP-${nextNum.toString().padStart(3, '0')}`;
+
     const tempPassword = "TempPassword123!" + Math.random().toString(36).slice(-4);
 
     const { data: authUser, error: createError } = await adminSupabase.auth.admin.createUser({
@@ -98,33 +99,24 @@ export async function createUser(orgId: string, data: {
         console.error("Failed to send welcome email:", emailError);
     }
 
-    // 2. Profile Creation is handled by Trigger usually?
-    // Our schema has a trigger `on_auth_user_created`.
-    // So profile should exist. We might want to ensure it's updated or wait for propagation?
-    // Triggers are synchronous in Postgres usually.
-
-    // We can update the profile just in case extra fields were missed or trigger didn't fire with metadata right.
-    // Actually our trigger uses metadata, so we might be good. 
-    // Let's fetch the profile to be sure we have the right ID (it matches auth ID).
-
     const profileId = authUser.user.id;
 
     // 2.5 Update extended profile fields
     await adminSupabase.from("profiles").update({
         hourly_rate: data.hourlyRate || 0,
-        mobile: data.mobile
+        mobile: data.mobile,
+        bank_details: data.bankDetails || {}
     }).eq("id", profileId);
 
-    // 3. Add to Organization
+    // 3. Add to Organization with Employee Number
     const { error: orgError } = await supabase.from("organization_members").insert({
         organization_id: orgId,
         user_id: profileId,
-        role: data.role
+        role: data.role,
+        employee_number: employeeNumber
     });
 
     if (orgError && !orgError.message.includes("duplicate")) {
-        // If org add fails, maybe we should cleanup the user? 
-        // For MVP, we'll explicitly throw.
         throw orgError;
     }
 
@@ -137,16 +129,18 @@ export async function createUser(orgId: string, data: {
     }
 
     revalidatePath(`/dashboard/${orgId}/users`);
-    return { success: true, tempPassword };
+    return { success: true, tempPassword, employeeNumber };
 }
 
 export async function updateUser(orgId: string, userId: string, data: {
     firstName: string;
     lastName: string;
     mobile: string;
+    email?: string;
     role: "admin" | "editor" | "viewer";
     teamId?: string | null;
     hourlyRate?: number;
+    bankDetails?: any;
 }) {
     const supabase = createClient();
     const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -164,20 +158,32 @@ export async function updateUser(orgId: string, userId: string, data: {
         throw new Error("Insufficient permissions to update users");
     }
 
-    // 1. Update Profile (Mobile, Name)
-    // Note: updating full_name in metadata is harder without admin client, but profile table is accessible via RLS (usually users can edit own, admins can edit all? Check policies).
-    // Policy "Users can update their own profile" exists.
-    // We need "Admins can update any profile" or at least "Admins can update organization members profiles"?
-    // Let's check RLS. If RLS blocks, we need admin client.
-    // Admin client is safer for "Admin editing another user".
+    // Fetch previous state for Audit Log
+    const { data: previousProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
     const adminSupabase = createAdminClient();
+
+    // 1. Update Auth Email (if changed)
+    if (data.email) {
+        const { error: authError } = await adminSupabase.auth.admin.updateUserById(userId, {
+            email: data.email,
+            email_confirm: true
+        });
+        if (authError) throw new Error("Failed to update auth email: " + authError.message);
+    }
 
     const { error: profileError } = await adminSupabase
         .from("profiles")
         .update({
             full_name: `${data.firstName} ${data.lastName}`,
             mobile: data.mobile,
-            hourly_rate: data.hourlyRate
+            email: data.email,
+            hourly_rate: data.hourlyRate,
+            bank_details: data.bankDetails
         })
         .eq("id", userId);
 
@@ -193,7 +199,6 @@ export async function updateUser(orgId: string, userId: string, data: {
     if (roleError) throw new Error("Failed to update role: " + roleError.message);
 
     // 3. Update Team
-    // Remove from existing team(s) - assuming single team for now
     await supabase.from("team_members").delete().eq("user_id", userId);
 
     if (data.teamId && data.teamId !== "none") {
@@ -203,9 +208,31 @@ export async function updateUser(orgId: string, userId: string, data: {
         });
     }
 
+    // Log the change
+    await logAction(
+        orgId,
+        "Updated User Profile",
+        `${data.firstName} ${data.lastName}`,
+        { email: data.email, role: data.role },
+        {
+            tableName: 'profiles',
+            recordId: userId,
+            previousData: previousProfile,
+            newData: {
+                full_name: `${data.firstName} ${data.lastName}`,
+                mobile: data.mobile,
+                email: data.email,
+                hourly_rate: data.hourlyRate,
+                bank_details: data.bankDetails
+            }
+        }
+    );
+
     revalidatePath(`/dashboard/${orgId}/users`);
     return { success: true };
 }
+
+import { logAction } from "@/lib/actions/audit";
 
 export async function bulkCreateUsers(orgId: string, users: any[]) {
     // Validate permission once

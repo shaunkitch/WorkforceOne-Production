@@ -104,10 +104,16 @@ export async function getPayrollRunDetails(runId: string) {
 
     if (!run) return null;
 
-    const { data: items } = await supabase
+    const { data: items, error } = await supabase
         .from("payroll_items")
         .select("*, profiles(full_name, email)")
         .eq("payroll_run_id", runId);
+
+    if (error) {
+        console.error("Error fetching payroll items:", error);
+    } else {
+        console.log(`Fetched ${items?.length} items for run ${runId}`);
+    }
 
     return { run, items: items || [] };
 }

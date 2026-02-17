@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, Palette, Shield, User, HardDrive } from "lucide-react";
+import { Loader2, Palette, Shield, User, HardDrive, LayoutGrid } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { FeatureSelector } from "@/components/dashboard/settings/feature-selector";
 
 export default function OrganizationSettingsPage({ params }: { params: { orgId: string } }) {
     const [loading, setLoading] = useState(true);
@@ -19,8 +20,17 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
     const [name, setName] = useState("");
     const [brandColor, setBrandColor] = useState("#000000");
     const [logoUrl, setLogoUrl] = useState("");
+    const [appLogoUrl, setAppLogoUrl] = useState("");
     const [faviconUrl, setFaviconUrl] = useState("");
     const [currency, setCurrency] = useState("USD");
+
+    // Feature Flags
+    const [features, setFeatures] = useState({
+        payroll: false,
+        crm: false,
+        operations: false,
+        automations: false
+    });
 
     const [usage, setUsage] = useState<any>(null);
 
@@ -37,8 +47,17 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
                 setName(org.name);
                 setBrandColor(org.brand_color || "#09090b");
                 setLogoUrl(org.logo_url || "");
+                setAppLogoUrl((org as any).app_logo_url || "");
                 setFaviconUrl((org as any).favicon_url || "");
                 setCurrency(org.currency || "USD");
+                if (org.features) {
+                    setFeatures({
+                        payroll: (org.features as any).payroll || false,
+                        crm: (org.features as any).crm || false,
+                        operations: (org.features as any).operations || false,
+                        automations: (org.features as any).automations || false,
+                    });
+                }
             }
             const stats = await getOrganizationUsage(params.orgId);
             setUsage(stats);
@@ -54,8 +73,10 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
                     name,
                     brandColor,
                     logoUrl,
+                    appLogoUrl,
                     faviconUrl,
-                    currency
+                    currency,
+                    features
                 });
                 toast({ title: "Settings saved", description: "Organization settings updated successfully." });
             } catch (error: any) {
@@ -147,6 +168,11 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
                             <p className="text-xs text-muted-foreground">Upload your company logo.</p>
                         </div>
                         <div className="grid gap-2">
+                            <Label>App Logo (Mobile)</Label>
+                            <ImageUpload value={appLogoUrl} onChange={setAppLogoUrl} />
+                            <p className="text-xs text-muted-foreground">Upload a 50x50 logo for the mobile app login screen.</p>
+                        </div>
+                        <div className="grid gap-2">
                             <Label>Organization Favicon</Label>
                             <ImageUpload value={faviconUrl} onChange={setFaviconUrl} />
                             <p className="text-xs text-muted-foreground">Upload your website favicon.</p>
@@ -158,6 +184,26 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
                                 <Input value={brandColor} onChange={e => setBrandColor(e.target.value)} className="font-mono uppercase" />
                             </div>
                         </div>
+                    </CardContent>
+                    <CardFooter className="border-t px-6 py-4">
+                        <Button onClick={handleSave} disabled={saving}>
+                            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Changes
+                        </Button>
+                    </CardFooter>
+                </Card>
+
+                {/* System Features */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><LayoutGrid className="h-4 w-4" /> Feature Enablement</CardTitle>
+                        <CardDescription>Enable or disable modules to tailor your workspace.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <FeatureSelector
+                            enabledFeatures={features}
+                            onChange={(newFeatures) => setFeatures(newFeatures as any)}
+                        />
                     </CardContent>
                     <CardFooter className="border-t px-6 py-4">
                         <Button onClick={handleSave} disabled={saving}>
@@ -197,6 +243,22 @@ export default function OrganizationSettingsPage({ params }: { params: { orgId: 
                     <CardFooter className="border-t px-6 py-4 bg-muted/50">
                         <p className="text-xs text-muted-foreground">Security settings are auto-saved in this demo.</p>
                     </CardFooter>
+                </Card>
+
+                {/* System Health */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2"><Loader2 className="h-4 w-4" /> System Health</CardTitle>
+                        <CardDescription>View real-time system status and API latency.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Check the health of the database connection and the latency of the API region.
+                        </p>
+                        <Button variant="outline" className="w-full" asChild>
+                            <a href={`/dashboard/${params.orgId}/settings/system-status`}>View System Status</a>
+                        </Button>
+                    </CardContent>
                 </Card>
             </div>
         </div>

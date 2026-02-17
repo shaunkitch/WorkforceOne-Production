@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +12,18 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getPayrollRuns } from "@/lib/actions/hr/payroll";
-import { getOrganization } from "@/lib/actions/organizations";
-import { useEffect } from "react";
+import { getOrganization, updateOrganization } from "@/lib/actions/organizations";
 import CreatePayrollDialog from "./CreatePayrollDialog";
 import { Badge } from "@/components/ui/badge";
 
@@ -24,7 +31,9 @@ export default function PayrollDashboard({ params }: { params: { orgId: string }
     const [runs, setRuns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [currency, setCurrency] = useState("USD");
+    const [updatingCurrency, startTransition] = useTransition();
     const router = useRouter();
+    const { toast } = useToast();
 
     const loadRuns = async () => {
         setLoading(true);
@@ -34,8 +43,9 @@ export default function PayrollDashboard({ params }: { params: { orgId: string }
                 getOrganization(params.orgId)
             ]);
             setRuns(data);
-            if (org && org.org) {
-                setCurrency(org.org.currency || "USD");
+            if (org) {
+                // Fixed: org returned from getOrganization is the object itself, not { org: ... }
+                setCurrency(org.currency || "USD");
             }
         } catch (e) {
             console.error(e);
@@ -48,11 +58,48 @@ export default function PayrollDashboard({ params }: { params: { orgId: string }
         loadRuns();
     }, [params.orgId]);
 
+    const handleCurrencyChange = (newCurrency: string) => {
+        setCurrency(newCurrency);
+        startTransition(async () => {
+            try {
+                await updateOrganization(params.orgId, { currency: newCurrency });
+                toast({
+                    title: "Currency Updated",
+                    description: `Default currency set to ${newCurrency}`,
+                });
+            } catch (error) {
+                console.error("Failed to update currency", error);
+                toast({
+                    title: "Error",
+                    description: "Failed to update currency settings",
+                    variant: "destructive",
+                });
+            }
+        });
+    };
+
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Payroll</h2>
-                <CreatePayrollDialog orgId={params.orgId} onSuccess={loadRuns} />
+                <div className="flex items-center gap-2">
+                    <Select value={currency} onValueChange={handleCurrencyChange} disabled={updatingCurrency}>
+                        <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="USD">USD ($)</SelectItem>
+                            <SelectItem value="EUR">EUR (€)</SelectItem>
+                            <SelectItem value="GBP">GBP (£)</SelectItem>
+                            <SelectItem value="CAD">CAD ($)</SelectItem>
+                            <SelectItem value="AUD">AUD ($)</SelectItem>
+                            <SelectItem value="JPY">JPY (¥)</SelectItem>
+                            <SelectItem value="INR">INR (₹)</SelectItem>
+                            <SelectItem value="ZAR">ZAR (R)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <CreatePayrollDialog orgId={params.orgId} onSuccess={loadRuns} />
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">

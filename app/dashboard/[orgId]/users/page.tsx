@@ -41,11 +41,15 @@ export default function UserDirectoryPage({ params }: { params: { orgId: string 
     const [members, setMembers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [organization, setOrganization] = useState<any>(null);
+
     const refresh = () => {
         getOrganizationMembers(params.orgId).then((data) => {
             setMembers(data);
             setLoading(false);
         });
+        // Also fetch org for currency
+        getOrganization(params.orgId).then(setOrganization);
     };
 
     useEffect(() => {
@@ -56,13 +60,14 @@ export default function UserDirectoryPage({ params }: { params: { orgId: string 
         <div className="space-y-4">
             <div className="flex justify-end gap-2">
                 <BulkImportBtn orgId={params.orgId} onSuccess={refresh} />
-                <CreateUserBtn orgId={params.orgId} onSuccess={refresh} />
+                <CreateUserBtn orgId={params.orgId} currency={organization?.currency} onSuccess={refresh} />
             </div>
 
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead>Emp #</TableHead>
                             <TableHead>Name</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Mobile</TableHead>
@@ -73,11 +78,12 @@ export default function UserDirectoryPage({ params }: { params: { orgId: string 
                     <TableBody>
                         {loading && (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell>
+                                <TableCell colSpan={6} className="h-24 text-center">Loading...</TableCell>
                             </TableRow>
                         )}
                         {!loading && members.map((member) => (
                             <TableRow key={member.id}>
+                                <TableCell className="font-mono text-sm">{member.employee_number || "-"}</TableCell>
                                 <TableCell className="font-medium flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
                                         <AvatarFallback>{(member.profiles?.full_name || member.user_id).substring(0, 2).toUpperCase()}</AvatarFallback>
@@ -88,7 +94,7 @@ export default function UserDirectoryPage({ params }: { params: { orgId: string 
                                 <TableCell>{member.profiles?.mobile || "-"}</TableCell>
                                 <TableCell className="capitalize">{member.role}</TableCell>
                                 <TableCell className="text-right space-x-2">
-                                    <EditUserDialog orgId={params.orgId} user={member} onSuccess={refresh} />
+                                    <EditUserDialog orgId={params.orgId} user={member} currency={organization?.currency} onSuccess={refresh} />
                                     <DeleteUserBtn orgId={params.orgId} userId={member.user_id} onSuccess={refresh} />
                                 </TableCell>
                             </TableRow>
@@ -124,7 +130,7 @@ function DeleteUserBtn({ orgId, userId, onSuccess }: { orgId: string, userId: st
     );
 }
 
-function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => void }) {
+function CreateUserBtn({ orgId, currency, onSuccess }: { orgId: string, currency?: string, onSuccess: () => void }) {
     const [open, setOpen] = useState(false);
     const [loading, startTransition] = useTransition();
     const [teams, setTeams] = useState<any[]>([]);
@@ -137,6 +143,11 @@ function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => v
     const [role, setRole] = useState<"admin" | "editor" | "viewer">("viewer");
     const [teamId, setTeamId] = useState("");
 
+    // Bank Details
+    const [bankName, setBankName] = useState("");
+    const [accountNumber, setAccountNumber] = useState("");
+    const [iban, setIban] = useState("");
+
     useEffect(() => {
         if (open) {
             getTeams(orgId).then(setTeams);
@@ -147,25 +158,27 @@ function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => v
         if (!email || !firstName) return;
         startTransition(async () => {
             try {
+                const bankDetails = currency === "ZAR"
+                    ? { bankName, accountNumber }
+                    : currency === "EUR" ? { iban } : {};
+
                 const res = await createUser(orgId, {
                     firstName,
                     lastName,
                     email,
                     mobile,
                     role,
-                    teamId: teamId === "none" ? undefined : teamId
+                    teamId: teamId === "none" ? undefined : teamId,
+                    bankDetails
                 });
 
                 // Show temp password
                 setOpen(false);
                 onSuccess();
 
-                // Ideally we show this in a nice dialog, but toast is quick for now.
-                // Or better, keep dialog open and show success state.
-                // Let's use a long duration toast.
                 toast({
                     title: "User Created",
-                    description: `Success! Temporary Password: ${res.tempPassword}`,
+                    description: `Success! Employee #: ${res.employeeNumber}. Temp Password: ${res.tempPassword}`,
                     duration: 10000,
                 });
 
@@ -187,14 +200,14 @@ function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => v
                     Create User
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Create User</DialogTitle>
                     <DialogDescription>
-                        Manually add a user to your workforce. They must already have an account.
+                        Manually add a user. Employee number will be auto-generated.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">First Name</label>
@@ -245,6 +258,34 @@ function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => v
                             </Select>
                         </div>
                     </div>
+
+                    {/* Dynamic Bank Details */}
+                    {currency === "ZAR" && (
+                        <div className="space-y-2 border-t pt-4 mt-2">
+                            <h4 className="font-medium text-sm">Banking Details (ZAR)</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">Bank Name</label>
+                                    <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="e.g. FNB" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">Account Number</label>
+                                    <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currency === "EUR" && (
+                        <div className="space-y-2 border-t pt-4 mt-2">
+                            <h4 className="font-medium text-sm">Banking Details (EUR)</h4>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">IBAN</label>
+                                <Input value={iban} onChange={e => setIban(e.target.value)} placeholder="NL00 BANK 0000 0000 00" />
+                            </div>
+                        </div>
+                    )}
+
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
@@ -258,19 +299,27 @@ function CreateUserBtn({ orgId, onSuccess }: { orgId: string, onSuccess: () => v
     );
 }
 
+import { getOrganization } from "@/lib/actions/organizations";
+
 import { updateUser } from "@/lib/actions/workforce";
 
-function EditUserDialog({ orgId, user, onSuccess }: { orgId: string, user: any, onSuccess: () => void }) {
+function EditUserDialog({ orgId, user, currency, onSuccess }: { orgId: string, user: any, currency?: string, onSuccess: () => void }) {
     const [open, setOpen] = useState(false);
     const [loading, startTransition] = useTransition();
     const [teams, setTeams] = useState<any[]>([]);
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
     const [mobile, setMobile] = useState("");
     const [role, setRole] = useState<"admin" | "editor" | "viewer">("viewer");
     const [teamId, setTeamId] = useState("none");
     const [hourlyRate, setHourlyRate] = useState("0");
+
+    // Bank Details
+    const [bankName, setBankName] = useState("");
+    const [accountNumber, setAccountNumber] = useState("");
+    const [iban, setIban] = useState("");
 
     const splitName = (fullName: string) => {
         const parts = (fullName || "").split(' ');
@@ -286,24 +335,34 @@ function EditUserDialog({ orgId, user, onSuccess }: { orgId: string, user: any, 
             const { first, last } = splitName(user.profiles?.full_name);
             setFirstName(first);
             setLastName(last);
+            setEmail(user.profiles?.email || "");
             setMobile(user.profiles?.mobile || "");
             setRole(user.role);
             setHourlyRate(user.profiles?.hourly_rate?.toString() || "0");
-            // Ideally we fetch current team membership for this user to pre-fill teamId
-            // For now default to none or we'd need to pass it in `user` object in `getOrganizationMembers`
+
+            const bank = user.profiles?.bank_details || {};
+            setBankName(bank.bankName || "");
+            setAccountNumber(bank.accountNumber || "");
+            setIban(bank.iban || "");
         }
     }, [open, orgId, user]);
 
     const handleUpdate = () => {
         startTransition(async () => {
             try {
+                const bankDetails = currency === "ZAR"
+                    ? { bankName, accountNumber }
+                    : currency === "EUR" ? { iban } : {};
+
                 await updateUser(orgId, user.user_id, {
                     firstName,
                     lastName,
+                    email,
                     mobile,
                     role,
                     teamId: teamId === "none" ? null : teamId,
-                    hourlyRate: parseFloat(hourlyRate)
+                    hourlyRate: parseFloat(hourlyRate),
+                    bankDetails
                 });
                 toast({ title: "User Updated", description: "Changes saved successfully." });
                 setOpen(false);
@@ -324,7 +383,7 @@ function EditUserDialog({ orgId, user, onSuccess }: { orgId: string, user: any, 
                     <DialogTitle>Edit User</DialogTitle>
                     <DialogDescription>Update user details and permissions.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">First Name</label>
@@ -335,6 +394,12 @@ function EditUserDialog({ orgId, user, onSuccess }: { orgId: string, user: any, 
                             <Input value={lastName} onChange={e => setLastName(e.target.value)} />
                         </div>
                     </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Email</label>
+                        <Input value={email} onChange={e => setEmail(e.target.value)} />
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Mobile Number</label>
                         <Input value={mobile} onChange={e => setMobile(e.target.value)} />
@@ -374,6 +439,33 @@ function EditUserDialog({ orgId, user, onSuccess }: { orgId: string, user: any, 
                             </Select>
                         </div>
                     </div>
+
+                    {/* Dynamic Bank Details */}
+                    {currency === "ZAR" && (
+                        <div className="space-y-2 border-t pt-4 mt-2">
+                            <h4 className="font-medium text-sm">Banking Details (ZAR)</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">Bank Name</label>
+                                    <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="e.g. FNB" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-medium text-muted-foreground">Account Number</label>
+                                    <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currency === "EUR" && (
+                        <div className="space-y-2 border-t pt-4 mt-2">
+                            <h4 className="font-medium text-sm">Banking Details (EUR)</h4>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">IBAN</label>
+                                <Input value={iban} onChange={e => setIban(e.target.value)} placeholder="NL00 BANK 0000 0000 00" />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

@@ -1,7 +1,16 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
+import { setDefaultResultOrder } from 'node:dns'
 
-export function createClient() {
+// Force IPv4 to avoid EADDRINUSE errors on Windows/Node 18+
+try {
+  setDefaultResultOrder('ipv4first')
+} catch (e) {
+  // Ignore if not available or already set
+}
+
+export const createClient = cache(() => {
   const cookieStore = cookies()
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -24,8 +33,6 @@ export function createClient() {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
             // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -33,11 +40,9 @@ export function createClient() {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
             // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },
     }
   )
-}
+})

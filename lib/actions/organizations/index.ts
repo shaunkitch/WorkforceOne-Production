@@ -78,7 +78,7 @@ export async function getOrganizationMembers(orgId: string) {
 
 import { revalidatePath } from "next/cache";
 
-export async function updateOrganization(orgId: string, data: { name?: string; brandColor?: string; logoUrl?: string; faviconUrl?: string; currency?: string }) {
+export async function updateOrganization(orgId: string, data: { name?: string; brandColor?: string; logoUrl?: string; appLogoUrl?: string; faviconUrl?: string; currency?: string; features?: any }) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
@@ -93,8 +93,10 @@ export async function updateOrganization(orgId: string, data: { name?: string; b
         name: data.name,
         brand_color: data.brandColor,
         logo_url: data.logoUrl,
+        app_logo_url: data.appLogoUrl,
         favicon_url: data.faviconUrl,
-        currency: data.currency
+        currency: data.currency,
+        features: data.features
     }).eq("id", orgId).select();
 
     if (error) {

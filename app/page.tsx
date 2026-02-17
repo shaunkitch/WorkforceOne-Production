@@ -26,9 +26,13 @@ import { Badge } from "@/components/ui/badge";
 export default async function IndexPage() {
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (error) {
+    console.error("IndexPage Auth Error:", error);
+  }
 
   if (user) {
     redirect('/dashboard');

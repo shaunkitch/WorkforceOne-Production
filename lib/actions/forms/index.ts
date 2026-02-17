@@ -3,39 +3,44 @@
 import { createClient } from "@/lib/supabase/server";
 import { Database, Json } from "@/types/database";
 import { revalidatePath } from "next/cache";
+import { ActionResponse } from "@/types/actions";
 
-export async function createForm(orgId: string, title: string, content?: Json) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+export async function createForm(orgId: string, title: string, content?: Json): Promise<ActionResponse<any>> {
+    try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Unauthorized" };
 
-    // Verify permissions (assuming owner/admin/editor can create)
-    const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", orgId)
-        .eq("user_id", user.id)
-        .single();
+        // Verify permissions (assuming owner/admin/editor can create)
+        const { data: membership } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", orgId)
+            .eq("user_id", user.id)
+            .single();
 
-    if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
-        throw new Error("Insufficient permissions to create forms");
+        if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
+            return { success: false, error: "Insufficient permissions to create forms" };
+        }
+
+        const { data, error } = await supabase
+            .from("forms")
+            .insert({
+                organization_id: orgId,
+                title: title,
+                content: content || [], // Use template content if provided
+                is_published: false
+            })
+            .select()
+            .single();
+
+        if (error) return { success: false, error: error.message };
+
+        revalidatePath(`/dashboard/${orgId}/forms`);
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
-
-    const { data, error } = await supabase
-        .from("forms")
-        .insert({
-            organization_id: orgId,
-            title: title,
-            content: content || [], // Use template content if provided
-            is_published: false
-        })
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-
-    revalidatePath(`/dashboard/${orgId}/forms`);
-    return data;
 }
 
 export async function getForms(orgId: string) {
@@ -75,153 +80,162 @@ export async function getForm(formId: string) {
     return data;
 }
 
-export async function updateForm(formId: string, updates: { title?: string; content?: Json; is_published?: boolean }) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
-
-    // Fetch form to get orgId (to check permissions)
-    const { data: form } = await supabase
-        .from("forms")
-        .select("organization_id")
-        .eq("id", formId)
-        .single();
-
-    if (!form) throw new Error("Form not found");
-
-    const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", form.organization_id)
-        .eq("user_id", user.id)
-        .single();
-
-    if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
-        throw new Error("Insufficient permissions to update form");
-    }
-
-    const { data, error } = await supabase
-        .from("forms")
-        .update(updates)
-        .eq("id", formId)
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-
-    revalidatePath(`/dashboard/${form.organization_id}/builder/${formId}`);
-    revalidatePath(`/dashboard/${form.organization_id}/forms`);
-
-    return data;
-}
-
-export async function publishForm(formId: string) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
-
-    const { data: form } = await supabase
-        .from("forms")
-        .select("organization_id")
-        .eq("id", formId)
-        .single();
-
-    if (!form) throw new Error("Form not found");
-
-    const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", form.organization_id)
-        .eq("user_id", user.id)
-        .single();
-
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-        throw new Error("Insufficient permissions to publish form");
-    }
-
-    const { data, error } = await supabase
-        .from("forms")
-        .update({ is_published: true })
-        .eq("id", formId)
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-
-    revalidatePath(`/dashboard/${form.organization_id}/builder/${formId}`);
-
-    return data;
-}
-
-export async function submitForm(formUrl: string, content: string) {
-    const supabase = createClient();
-    const { data: form } = await supabase.from("forms").select("id, is_published").eq("id", formUrl).single();
-
-    if (!form || !form.is_published) {
-        throw new Error("Form not found or not published");
-    }
-
-    const parsedContent = JSON.parse(content);
-
-    // Attempt to extract metadata if fields exist. 
-    // We don't know the exact keys for signature/location here without the form definition, 
-    // but usually we store them by element ID.
-    // For now, valid JSON data is the priority.
-
-    const { data: submission } = await supabase.from("submissions").insert({
-        form_id: form.id,
-        data: parsedContent,
-    }).select().single();
-
-    // Trigger Automations (Fire and Forget)
-    // We don't await this to keep submission fast, or we do await if critical.
-    // For Server Actions, awaiting is safer to ensure it runs before lambda freezes?
-    // Actually next.js server actions: better to await or use `waitUntil` (if available on vercel edge, but here standard node).
-    // Let's await to be safe.
+export async function updateForm(formId: string, updates: { title?: string; content?: Json; is_published?: boolean }): Promise<ActionResponse<any>> {
     try {
-        const { getAutomations, executeAutomations } = await import("@/lib/actions/automations");
-        const autos = await getAutomations(form.id);
-        if (autos.length > 0) {
-            await executeAutomations(autos, submission);
-        }
-    } catch (error) {
-        console.error("Automation Trigger Failed:", error);
-    }
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Unauthorized" };
 
-    return { success: true };
+        // Fetch form to get orgId (to check permissions)
+        const { data: form } = await supabase
+            .from("forms")
+            .select("organization_id")
+            .eq("id", formId)
+            .single();
+
+        if (!form) return { success: false, error: "Form not found" };
+
+        const { data: membership } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", form.organization_id)
+            .eq("user_id", user.id)
+            .single();
+
+        if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
+            return { success: false, error: "Insufficient permissions to update form" };
+        }
+
+        const { data, error } = await supabase
+            .from("forms")
+            .update(updates)
+            .eq("id", formId)
+            .select()
+            .single();
+
+        if (error) return { success: false, error: error.message };
+
+        revalidatePath(`/dashboard/${form.organization_id}/builder/${formId}`);
+        revalidatePath(`/dashboard/${form.organization_id}/forms`);
+
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
 }
 
-export async function deleteForm(formId: string) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Unauthorized");
+export async function publishForm(formId: string): Promise<ActionResponse<any>> {
+    try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Unauthorized" };
 
-    const { data: form } = await supabase
-        .from("forms")
-        .select("organization_id")
-        .eq("id", formId)
-        .single();
+        const { data: form } = await supabase
+            .from("forms")
+            .select("organization_id")
+            .eq("id", formId)
+            .single();
 
-    if (!form) throw new Error("Form not found");
+        if (!form) return { success: false, error: "Form not found" };
 
-    const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role")
-        .eq("organization_id", form.organization_id)
-        .eq("user_id", user.id)
-        .single();
+        const { data: membership } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", form.organization_id)
+            .eq("user_id", user.id)
+            .single();
 
-    if (!membership || !["owner", "admin"].includes(membership.role)) {
-        throw new Error("Insufficient permissions to delete form");
+        if (!membership || !["owner", "admin"].includes(membership.role)) {
+            return { success: false, error: "Insufficient permissions to publish form" };
+        }
+
+        const { data, error } = await supabase
+            .from("forms")
+            .update({ is_published: true })
+            .eq("id", formId)
+            .select()
+            .single();
+
+        if (error) return { success: false, error: error.message };
+
+        revalidatePath(`/dashboard/${form.organization_id}/builder/${formId}`);
+
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
     }
+}
 
-    const { error } = await supabase
-        .from("forms")
-        .delete()
-        .eq("id", formId);
+export async function submitForm(formUrl: string, content: string): Promise<ActionResponse<any>> {
+    try {
+        const supabase = createClient();
+        const { data: form } = await supabase.from("forms").select("id, is_published").eq("id", formUrl).single();
 
-    if (error) throw new Error(error.message);
+        if (!form || !form.is_published) {
+            return { success: false, error: "Form not found or not published" };
+        }
 
-    revalidatePath(`/dashboard/${form.organization_id}/forms`);
-    return { success: true };
+        const parsedContent = JSON.parse(content);
+
+        const { data: submission, error } = await supabase.from("submissions").insert({
+            form_id: form.id,
+            data: parsedContent,
+        }).select().single();
+
+        if (error) return { success: false, error: error.message };
+
+        // Trigger Automations (Fire and Forget)
+        try {
+            const { getAutomations, executeAutomations } = await import("@/lib/actions/automations");
+            const autos = await getAutomations(form.id);
+            if (autos.length > 0) {
+                await executeAutomations(autos, submission);
+            }
+        } catch (error) {
+            console.error("Automation Trigger Failed:", error);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteForm(formId: string): Promise<ActionResponse<void>> {
+    try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: "Unauthorized" };
+
+        const { data: form } = await supabase
+            .from("forms")
+            .select("organization_id")
+            .eq("id", formId)
+            .single();
+
+        if (!form) return { success: false, error: "Form not found" };
+
+        const { data: membership } = await supabase
+            .from("organization_members")
+            .select("role")
+            .eq("organization_id", form.organization_id)
+            .eq("user_id", user.id)
+            .single();
+
+        if (!membership || !["owner", "admin"].includes(membership.role)) {
+            return { success: false, error: "Insufficient permissions to delete form" };
+        }
+
+        const { error } = await supabase
+            .from("forms")
+            .delete()
+            .eq("id", formId);
+
+        if (error) return { success: false, error: error.message };
+
+        revalidatePath(`/dashboard/${form.organization_id}/forms`);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
 }

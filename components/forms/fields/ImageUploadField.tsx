@@ -238,7 +238,7 @@ function PropertiesComponent({ elementInstance }: { elementInstance: FormElement
                                 </FormDescription>
                             </div>
                             <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                <Switch checked={!!field.value} onCheckedChange={field.onChange} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
