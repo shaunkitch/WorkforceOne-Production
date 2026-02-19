@@ -36,6 +36,7 @@ export default function Dashboard() {
   });
 
   const userId = userData?.user?.id;
+  const userName = userData?.name;
 
   // 2. Assignments Query
   const { data: assignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useQuery({
