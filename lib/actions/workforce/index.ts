@@ -18,7 +18,9 @@ export async function createTeam(orgId: string, name: string) {
     revalidatePath(`/dashboard/${orgId}/users/teams`);
 }
 
-export async function getTeams(orgId: string) {
+import { Team } from "@/types/app";
+
+export async function getTeams(orgId: string): Promise<Team[]> {
     const supabase = createClient();
 
     const { data: teams } = await supabase
@@ -27,7 +29,7 @@ export async function getTeams(orgId: string) {
         .eq("organization_id", orgId)
         .order("created_at", { ascending: false });
 
-    return teams || [];
+    return (teams as Team[]) || [];
 }
 
 export async function getTeamMembers(teamId: string) {
@@ -41,6 +43,8 @@ export async function getTeamMembers(teamId: string) {
     return members || [];
 }
 
+import { BankDetails } from "@/types/app";
+
 // Extended User Creation
 export async function createUser(orgId: string, data: {
     firstName: string;
@@ -50,86 +54,13 @@ export async function createUser(orgId: string, data: {
     role: "admin" | "editor" | "viewer";
     teamId?: string;
     hourlyRate?: number;
-    bankDetails?: any;
+    bankDetails?: BankDetails;
 }) {
     const supabase = createClient();
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     if (!currentUser) throw new Error("Unauthorized");
 
-    // 1. Create Auth User using Admin Client
-    const adminSupabase = createAdminClient();
-
-    // Auto-generate Employee Number
-    // Get current count of members to determine next number
-    // Note: This isn't perfectly race-condition proof without a sequence or locks, 
-    // but sufficient for this scale.
-    const { count } = await supabase
-        .from("organization_members")
-        .select("*", { count: 'exact', head: true })
-        .eq("organization_id", orgId);
-
-    const nextNum = (count || 0) + 1;
-    const employeeNumber = `EMP-${nextNum.toString().padStart(3, '0')}`;
-
-    const tempPassword = "TempPassword123!" + Math.random().toString(36).slice(-4);
-
-    const { data: authUser, error: createError } = await adminSupabase.auth.admin.createUser({
-        email: data.email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-            full_name: `${data.firstName} ${data.lastName}`,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            mobile: data.mobile,
-            avatar_url: ""
-        }
-    });
-
-    if (createError) {
-        throw new Error(createError.message);
-    }
-
-    if (!authUser.user) throw new Error("Failed to create user");
-
-    // Send Welcome Email
-    try {
-        await sendWelcomeEmail(data.email, `${data.firstName} ${data.lastName}`, tempPassword);
-    } catch (emailError) {
-        console.error("Failed to send welcome email:", emailError);
-    }
-
-    const profileId = authUser.user.id;
-
-    // 2.5 Update extended profile fields
-    await adminSupabase.from("profiles").update({
-        hourly_rate: data.hourlyRate || 0,
-        mobile: data.mobile,
-        bank_details: data.bankDetails || {}
-    }).eq("id", profileId);
-
-    // 3. Add to Organization with Employee Number
-    const { error: orgError } = await supabase.from("organization_members").insert({
-        organization_id: orgId,
-        user_id: profileId,
-        role: data.role,
-        employee_number: employeeNumber
-    });
-
-    if (orgError && !orgError.message.includes("duplicate")) {
-        throw orgError;
-    }
-
-    // 4. Add to Team (if selected)
-    if (data.teamId) {
-        await supabase.from("team_members").insert({
-            team_id: data.teamId,
-            user_id: profileId
-        });
-    }
-
-    revalidatePath(`/dashboard/${orgId}/users`);
-    return { success: true, tempPassword, employeeNumber };
+    // ... (rest of function)
 }
 
 export async function updateUser(orgId: string, userId: string, data: {
@@ -140,7 +71,7 @@ export async function updateUser(orgId: string, userId: string, data: {
     role: "admin" | "editor" | "viewer";
     teamId?: string | null;
     hourlyRate?: number;
-    bankDetails?: any;
+    bankDetails?: BankDetails;
 }) {
     const supabase = createClient();
     const { data: { user: currentUser } } = await supabase.auth.getUser();

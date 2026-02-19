@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import { setDefaultResultOrder } from 'node:dns'
+import { Database } from '@/types/database'
 
 // Force IPv4 to avoid EADDRINUSE errors on Windows/Node 18+
 try {
@@ -20,7 +21,7 @@ export const createClient = cache(() => {
     console.warn('Missing Supabase environment variables');
   }
 
-  return createServerClient(
+  return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {

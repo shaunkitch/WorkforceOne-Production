@@ -3,36 +3,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function getOrganizationMembers(orgId: string) {
+import { OrganizationMember } from "@/types/app";
+
+export async function getOrganizationMembers(orgId: string): Promise<OrganizationMember[]> {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
-    // Join with profiles if possible, or just fetch
-    // Since Supabase join syntax is tricky with custom types sometimes, 
-    // we might need to fetch members then fetch profiles, or use a view.
-    // Assuming 'profiles' table exists and is linked.
-
-    // Simplest approach: Fetch org members, then fetch their profile data
+    // Fetch members with profiles
     const { data: members, error } = await supabase
         .from("organization_members")
-        .select("*, profiles(*)") // This assumes foreign key exists from organization_members.user_id to profiles.id
+        .select(`
+            *,
+            profiles (*)
+        `)
         .eq("organization_id", orgId);
 
-    // If FK doesn't exist explicitly for Supabase to auto-detect, we might fail here.
-    // For this mock/dev environment, let's assume standard lookup.
-
     if (error) {
-        // If join fails, just return members and we handle missing profile logic in UI
         console.error("Error fetching members:", error);
-        const { data: rawMembers } = await supabase
-            .from("organization_members")
-            .select("*")
-            .eq("organization_id", orgId);
-        return rawMembers || [];
+        return [];
     }
 
-    return members || [];
+    return members as OrganizationMember[];
 }
 
 export async function inviteMember(orgId: string, email: string, role: "owner" | "admin" | "editor" | "viewer") {

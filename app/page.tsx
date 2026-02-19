@@ -49,7 +49,7 @@ export default function IndexPage() {
               transition={{ duration: 0.5 }}
             >
               <Badge variant="outline" className="px-4 py-1.5 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-sm font-medium mb-8 backdrop-blur-md">
-                ✨ The Operating System for Field Operations
+                ✨ Enterprise-Grade Field Operations
               </Badge>
             </motion.div>
 
@@ -59,9 +59,9 @@ export default function IndexPage() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="font-heading text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-slate-900 dark:text-white max-w-5xl text-balance mb-8"
             >
-              One Platform. <br />
+              Command Your <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                Limitless Possibilities.
+                Remote Workforce.
               </span>
             </motion.h1>
 
@@ -71,7 +71,7 @@ export default function IndexPage() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="max-w-2xl text-lg sm:text-xl text-slate-600 dark:text-slate-400 leading-relaxed text-balance mb-10"
             >
-              From Payroll and HR to Security Patrols and CRM. WorkforceOne is the modular platform that grows with your business. Turn features on and off as you need them.
+              The all-in-one operating system for field teams. Manage <strong>Security Patrols</strong>, <strong>HR</strong>, <strong>Logistics</strong>, and <strong>Client Relationships</strong> in a single, modular platform. Deploy anywhere, brand as your own.
             </motion.p>
 
             <motion.div
@@ -162,8 +162,8 @@ export default function IndexPage() {
             <BentoGrid className="max-w-6xl mx-auto">
               {/* Payroll */}
               <BentoGridItem
-                title="Payroll & HR"
-                description="Managing your team shouldn't be a headache. Automate specialized payroll runs, manage comprehensive employee profiles, and issue payslips in seconds."
+                title="Global Payroll & HR"
+                description="Manage a distributed workforce with ease. Automate payroll for remote teams, handle multi-currency payments, and maintain digital employee files."
                 header={<div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20" />}
                 icon={<CreditCard className="h-8 w-8 text-blue-500" />}
                 className="md:col-span-1"
@@ -171,8 +171,8 @@ export default function IndexPage() {
 
               {/* Security - Featured Large Item */}
               <BentoGridItem
-                title="Security & Patrols"
-                description="Advanced guard management with GPS-tracked patrols, QR code checkpoints, and real-time incident reporting directly from the field."
+                title="Security & Patrol Management"
+                description="Real-time command center for security operations. GPS-tracked patrols, NFC/QR checkpoints, and instant incident reporting from the field app."
                 header={<div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20" />}
                 icon={<ShieldCheck className="h-8 w-8 text-purple-500" />}
                 className="md:col-span-2"
@@ -180,8 +180,8 @@ export default function IndexPage() {
 
               {/* CRM - Featured Large Item */}
               <BentoGridItem
-                title="CRM & Sales"
-                description="Track every client interaction. Schedule recurring visits, manage leads, and ensure your sales team is always at the right place at the right time."
+                title="Field Sales & CRM"
+                description="Empower your field reps. Schedule client visits, track locations, and capture leads offline. Syncs automatically when back online."
                 header={<div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-orange-500/20 to-rose-500/20" />}
                 icon={<Users className="h-8 w-8 text-orange-500" />}
                 className="md:col-span-2"
@@ -189,14 +189,89 @@ export default function IndexPage() {
 
               {/* Operations */}
               <BentoGridItem
-                title="Operations & Forms"
-                description="The core of your business. Build custom forms with AI, track inventory, and manage audits with ease."
+                title="Operations & Logistics"
+                description="Digitize every workflow. Create custom mobile forms for audits, inspections, and inventory management. No coding required."
                 header={<div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20" />}
                 icon={<LayoutDashboard className="h-8 w-8 text-green-500" />}
                 className="md:col-span-1"
               />
             </BentoGrid>
+          </div>
+        </section>
 
+        {/* --- ENTERPRISE CAPABILITIES --- */}
+        <section className="py-24 bg-slate-50 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800">
+          <div className="container">
+            <div className="grid md:grid-cols-2 gap-16 items-center">
+              <div className="space-y-8">
+                <Badge variant="outline" className="border-purple-500 text-purple-600">Enterprise Ready</Badge>
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  Your Brand.<br />Your Infrastructure.
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-slate-400">
+                  We built WorkforceOne for scale. Unlike rigid SaaS tools, we adapt to your operational requirements.
+                </p>
+
+                <div className="space-y-6">
+                  <div className="flex gap-4">
+                    <div className="mt-1 bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg h-fit">
+                      <Zap className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Full White-Labeling</h3>
+                      <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        Make it yours. Custom domain, logos, and color themes. Your workforce sees <em>your</em> brand, not ours.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="mt-1 bg-green-100 dark:bg-green-900/30 p-2 rounded-lg h-fit">
+                      <Lock className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Flexible Deployment</h3>
+                      <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        Secure Cloud, Private VPC, or fully <strong>On-Premise</strong>. We deploy where your data needs to live.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="mt-1 bg-orange-100 dark:bg-orange-900/30 p-2 rounded-lg h-fit">
+                      <Smartphone className="w-6 h-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Offline-First Mobile</h3>
+                      <p className="text-slate-600 dark:text-slate-400 mt-1">
+                        Field operations don't stop when the signal drops. Our mobile app works 100% offline and syncs when connected.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-2xl blur-2xl opacity-20 transform rotate-3"></div>
+                <div className="relative bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-8 aspect-square flex flex-col justify-center items-center text-center space-y-6">
+                  <div className="w-24 h-24 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg mb-4">
+                    {/* Placeholder for User's Logo if they had one uploaded, else generic W1 icon */}
+                    <span className="text-white text-4xl font-bold">W1</span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-mono text-slate-400 mb-2">whitelabel_config.json</div>
+                    <div className="text-left bg-slate-50 dark:bg-slate-900 p-4 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 w-full max-w-sm mx-auto">
+                      <p><span className="text-purple-600">"brand_name"</span>: <span className="text-green-600">"Acme Security"</span>,</p>
+                      <p><span className="text-purple-600">"primary_color"</span>: <span className="text-green-600">"#FF5733"</span>,</p>
+                      <p><span className="text-purple-600">"deployment_mode"</span>: <span className="text-green-600">"ON_PREMISE"</span>,</p>
+                      <p><span className="text-purple-600">"features"</span>: [</p>
+                      <p className="pl-4"><span className="text-green-600">"patrols"</span>, <span className="text-green-600">"checkpoints"</span></p>
+                      <p>]</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -273,7 +348,7 @@ export default function IndexPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }
 
