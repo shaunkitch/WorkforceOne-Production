@@ -9,6 +9,22 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
+import { offlineStore } from '../lib/offline-store';
+
+const BACKGROUND_SYNC_TASK = 'workforce-background-sync';
+
+TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
+  try {
+    const { success } = await offlineStore.syncOutbox();
+    return success > 0
+      ? BackgroundFetch.BackgroundFetchResult.NewData
+      : BackgroundFetch.BackgroundFetchResult.NoData;
+  } catch (err) {
+    return BackgroundFetch.BackgroundFetchResult.Failed;
+  }
+});
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -65,6 +81,13 @@ export default function RootLayout() {
     }
 
     initAuth();
+
+    // Register Background Fetch
+    BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
+      minimumInterval: 15 * 60, // 15 minutes
+      stopOnTerminate: false,
+      startOnBoot: true,
+    }).catch(err => console.log("Failed to register background task", err));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {

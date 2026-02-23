@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 const createOrganizationSchema = z.object({
-    name: z.string().min(2, "Organization name must be at least 2 characters"),
+    name: z.string().min(2, "Organization name must be at least 2 characters").optional().or(z.literal("")),
     slug: z.string().min(3, "Slug must be at least 3 characters").optional().or(z.literal("")),
 });
 
@@ -43,8 +43,11 @@ export async function createOrganization(prevState: any, formData: FormData) {
 
     const { name, slug } = validatedFields.data;
 
-    // Generate slug if not provided
-    const finalSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Math.random().toString(36).substring(2, 7);
+    const userFullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Workspace";
+    const finalName = name || `${userFullName}'s Workspace`;
+
+    // Generate slug if not provided based on full_name or provided name
+    const finalSlug = slug || finalName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Math.random().toString(36).substring(2, 7);
 
     // 1a. Ensure Profile Exists (Fix for FK Constraint Error)
     // The user might exist in auth.users but not in public.profiles yet.
@@ -66,7 +69,7 @@ export async function createOrganization(prevState: any, formData: FormData) {
     const { data: org, error: orgError } = await supabase
         .from("organizations")
         .insert({
-            name,
+            name: finalName,
             slug: finalSlug,
             created_by_user_id: user.id,
         })
@@ -81,13 +84,12 @@ export async function createOrganization(prevState: any, formData: FormData) {
         };
     }
 
-    // 2. Add Member (Owner)
-    // Note: The 'Allow initial owner to self-assign' policy handles the permission for this.
-    const { error: memberError } = await supabase.from("organization_members").insert({
+    // 2. Add Member (Owner) - Using Upsert to ensure idempotency
+    const { error: memberError } = await supabase.from("organization_members").upsert({
         organization_id: org.id,
         user_id: user.id,
         role: "owner",
-    });
+    }, { onConflict: 'organization_id, user_id' });
 
     if (memberError) {
         console.error("Error adding member:", memberError);

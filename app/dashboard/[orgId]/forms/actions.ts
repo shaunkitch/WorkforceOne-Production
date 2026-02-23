@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { FORM_TEMPLATES } from "@/lib/constants/templates";
+
 
 const createFormSchema = z.object({
     title: z.string().min(1, "Title is required"),
@@ -42,13 +42,17 @@ export async function createForm(prevState: any, formData: FormData) {
 
     let formContent: any = [];
 
-    // If a template is selected, generate its content
-    if (template && FORM_TEMPLATES[template as keyof typeof FORM_TEMPLATES]) {
-        formContent = FORM_TEMPLATES[template as keyof typeof FORM_TEMPLATES].content();
-    } else {
-        // Default blank
-        // If description was provided, we could store it, but for now let's stick to array
-        formContent = [];
+    // If a template is selected, clone its content from DB
+    if (template && template !== "BLANK") {
+        const { data: templateForm, error: templateError } = await supabase
+            .from("forms")
+            .select("content")
+            .eq("id", template)
+            .single();
+
+        if (templateForm && !templateError) {
+            formContent = templateForm.content || [];
+        }
     }
 
     const { data: form, error } = await supabase

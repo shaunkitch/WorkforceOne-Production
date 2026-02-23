@@ -16,6 +16,7 @@ export interface KanbanTask {
     created_at: string;
     updated_at: string;
     team_id: string | null;
+    form_id: string | null;
     assignee: {
         first_name: string;
         last_name: string;
@@ -25,6 +26,10 @@ export interface KanbanTask {
     team: {
         id: string;
         name: string;
+    } | null;
+    form: {
+        id: string;
+        title: string;
     } | null;
 }
 
@@ -41,7 +46,8 @@ export async function getTasks(orgId: string): Promise<KanbanTask[]> {
                 email,
                 avatar_url
             ),
-            team:teams(id, name)
+            team:teams(id, name),
+            form:forms(id, title)
         `)
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
@@ -55,11 +61,12 @@ export async function getTasks(orgId: string): Promise<KanbanTask[]> {
     return (tasks as any[]).map(task => ({
         ...task,
         assignee: task.assignee || null,
-        team: task.team || null
+        team: task.team || null,
+        form: task.form || null
     })) as KanbanTask[];
 }
 
-export async function createTask(orgId: string, data: { title: string; description?: string; status?: TaskStatus; assignee_id?: string; team_id?: string; due_date?: string }) {
+export async function createTask(orgId: string, data: { title: string; description?: string; status?: TaskStatus; assignee_id?: string; team_id?: string; form_id?: string; due_date?: string }) {
     const supabase = createClient();
 
     const { error } = await supabase.from('tasks').insert({
@@ -69,6 +76,7 @@ export async function createTask(orgId: string, data: { title: string; descripti
         status: data.status || 'TODO',
         assignee_id: data.assignee_id || null,
         team_id: data.team_id || null,
+        form_id: data.form_id || null,
         due_date: data.due_date || null
     });
 
@@ -99,6 +107,32 @@ export async function updateTaskStatus(orgId: string, taskId: string, newStatus:
     return { success: true };
 }
 
+export async function updateTask(orgId: string, taskId: string, data: { title?: string; description?: string; status?: TaskStatus; assignee_id?: string | null; team_id?: string | null; form_id?: string | null; due_date?: string | null }) {
+    const supabase = createClient();
+
+    const { error } = await supabase
+        .from('tasks')
+        .update({
+            ...(data.title !== undefined && { title: data.title }),
+            ...(data.description !== undefined && { description: data.description }),
+            ...(data.status !== undefined && { status: data.status }),
+            ...(data.assignee_id !== undefined && { assignee_id: data.assignee_id }),
+            ...(data.team_id !== undefined && { team_id: data.team_id }),
+            ...(data.form_id !== undefined && { form_id: data.form_id }),
+            ...(data.due_date !== undefined && { due_date: data.due_date })
+        })
+        .eq('id', taskId)
+        .eq('organization_id', orgId);
+
+    if (error) {
+        console.error("Error updating task:", error);
+        return { error: error.message };
+    }
+
+    revalidatePath(`/dashboard/${orgId}`);
+    return { success: true };
+}
+
 export async function deleteTask(orgId: string, taskId: string) {
     const supabase = createClient();
 
@@ -120,13 +154,17 @@ export async function deleteTask(orgId: string, taskId: string) {
 export async function getTaskAssignees(orgId: string) {
     const supabase = createClient();
 
-    const [membersRes, teamsRes] = await Promise.all([
+    const [membersRes, teamsRes, formsRes] = await Promise.all([
         supabase.from('organization_members')
             .select(`user_id, profiles(first_name, last_name, full_name)`)
             .eq('organization_id', orgId),
 
         supabase.from('teams')
             .select('*')
+            .eq('organization_id', orgId),
+
+        supabase.from('forms')
+            .select('id, title')
             .eq('organization_id', orgId)
     ]);
 
@@ -137,7 +175,7 @@ export async function getTaskAssignees(orgId: string) {
 
     return {
         users,
-        teams: teamsRes.data || []
+        teams: teamsRes.data || [],
+        forms: formsRes.data || []
     };
 }
-

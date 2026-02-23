@@ -32,6 +32,22 @@ export async function createPayrollRun(orgId: string, start: Date, end: Date, ti
 
     if (!members) return { success: true, runId: run.id };
 
+    // Fetch all sites for geofencing compliance check
+    const { data: sites } = await supabase
+        .from("sites")
+        .select("latitude, longitude, radius")
+        .eq("organization_id", orgId);
+
+    function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+        const R = 6371e3; // metres
+        const p1 = lat1 * Math.PI / 180;
+        const p2 = lat2 * Math.PI / 180;
+        const dp = (lat2 - lat1) * Math.PI / 180;
+        const dl = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
     let totalPayrollAmount = 0;
     const items = [];
 
@@ -45,16 +61,38 @@ export async function createPayrollRun(orgId: string, start: Date, end: Date, ti
         // Fetch time entries in range
         const { data: entries } = await supabase
             .from("time_entries")
-            .select("duration_minutes")
+            .select("duration_minutes, location")
             .eq("user_id", member.user_id)
             .eq("organization_id", orgId)
             .gte("clock_in", start.toISOString())
             .lte("clock_out", end.toISOString());
 
+        // Check Geofence Compliance
+        let verifiedShifts = 0;
+        entries?.forEach(entry => {
+            if (entry.location) {
+                // Support multiple JSON location structures across web/mobile
+                const locData = entry.location as any;
+                const lat = locData.latitude || locData.coords?.latitude || locData.lat;
+                const lng = locData.longitude || locData.coords?.longitude || locData.lng;
+
+                if (lat && lng && sites) {
+                    const isVerified = sites.some(site => {
+                        if (!site.latitude || !site.longitude) return false;
+                        return getDistance(lat, lng, site.latitude, site.longitude) <= (site.radius || 100);
+                    });
+                    if (isVerified) verifiedShifts++;
+                }
+            }
+        });
+
         const totalMinutes = entries?.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) || 0;
         const totalHours = Number((totalMinutes / 60).toFixed(2));
         const grossPay = Number((totalHours * hourlyRate).toFixed(2));
-        const netPay = grossPay; // Deductions/Bonuses handled later
+
+        // $5 Compliance Bonus per Verified Shift
+        const verifiedBonus = verifiedShifts * 5;
+        const netPay = grossPay + verifiedBonus;
 
         if (totalHours > 0 || hourlyRate > 0) {
             items.push({
@@ -63,6 +101,7 @@ export async function createPayrollRun(orgId: string, start: Date, end: Date, ti
                 total_hours: totalHours,
                 hourly_rate: hourlyRate,
                 gross_pay: grossPay,
+                bonuses: verifiedBonus,
                 net_pay: netPay
             });
             totalPayrollAmount += netPay;

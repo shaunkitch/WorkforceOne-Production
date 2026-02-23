@@ -207,7 +207,7 @@ export default function ClockScreen() {
 
     if (loading && !sites.length) {
         return (
-            <View style={styles.center}>
+            <View className="flex-1 justify-center items-center bg-slate-50">
                 <ActivityIndicator size="large" color="#2563eb" />
             </View>
         );
@@ -216,46 +216,53 @@ export default function ClockScreen() {
     const isWithinRange = nearestSite && distanceToSite !== null && distanceToSite <= nearestSite.radius;
 
     return (
-        <View style={styles.outerContainer}>
+        <View className="flex-1 bg-slate-50">
             <StatusBar style="light" />
+            {/* Header Area */}
             <LinearGradient
                 colors={org?.brand_color ? [org.brand_color, org.brand_color] : ['#1e40af', '#2563eb']}
-                style={styles.headerGradient}
+                className="pt-16 pb-8 px-6 rounded-b-3xl shadow-lg"
                 end={{ x: 0.5, y: 1 }}
                 start={{ x: 0.5, y: 0 }}
             >
-                <Text style={styles.headerTitle}>Time & Attendance</Text>
-                <Text style={styles.headerSubtitle}>Clock In/Out Management</Text>
+                <Text className="text-3xl font-bold text-white mb-2">Time & Attendance</Text>
+                <Text className="text-blue-100 text-sm font-medium">Clock In/Out Management</Text>
             </LinearGradient>
 
-            <ScrollView contentContainerStyle={styles.container}>
+            <ScrollView
+                className="flex-1 px-6 -mt-4"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 }}
+            >
                 {/* STATUS CARD */}
-                <View style={[styles.card, currentEntry ? styles.cardActive : styles.cardInactive]}>
-                    <Text style={styles.statusLabel}>Current Status</Text>
-                    <Text style={styles.statusText}>
+                <View className={`p-6 rounded-2xl mb-6 shadow-sm border ${currentEntry ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100'}`}>
+                    <Text className="text-slate-500 text-xs font-bold tracking-wider uppercase mb-2">Current Status</Text>
+                    <Text className="text-3xl font-black text-slate-900">
                         {currentEntry ? "CLOCKED IN" : "CLOCKED OUT"}
                     </Text>
                     {currentEntry && (
-                        <Text style={styles.timeText}>
+                        <Text className="text-slate-600 mt-2 font-medium">
                             Since: {new Date(currentEntry.clock_in).toLocaleTimeString()}
                         </Text>
                     )}
                 </View>
 
                 {/* LOCATION CARD */}
-                <View style={styles.locationCard}>
-                    <Ionicons name="location" size={24} color="#64748b" />
-                    <View style={{ marginLeft: 12, flex: 1 }}>
-                        <Text style={styles.locationTitle}>
+                <View className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex-row items-center mb-6">
+                    <View className="w-12 h-12 bg-slate-50 rounded-xl items-center justify-center mr-4">
+                        <Ionicons name="location" size={24} color="#64748b" />
+                    </View>
+                    <View className="flex-1">
+                        <Text className="font-bold text-slate-800 text-base">
                             {nearestSite ? nearestSite.name : "Searching for sites..."}
                         </Text>
                         {nearestSite && (
-                            <Text style={[styles.distanceText, isWithinRange ? styles.textGreen : styles.textRed]}>
+                            <Text className={`mt-1 font-medium text-sm ${isWithinRange ? 'text-green-600' : 'text-red-500'}`}>
                                 {Math.round(distanceToSite || 0)}m away (Radius: {nearestSite.radius}m)
                             </Text>
                         )}
                         {!nearestSite && location && (
-                            <Text style={styles.distanceText}>
+                            <Text className="text-slate-500 text-sm mt-1">
                                 GPS: {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}
                             </Text>
                         )}
@@ -264,20 +271,17 @@ export default function ClockScreen() {
 
                 {/* ACTION BUTTON */}
                 <TouchableOpacity
-                    style={[
-                        styles.button,
-                        currentEntry ? styles.btnOut : styles.btnIn,
-                        // (!currentEntry && !isWithinRange) ? styles.btnDisabled : {} // Remove visual disable to encourage click for feedback
-                    ]}
+                    className={`flex-row w-full p-4 rounded-xl items-center justify-center shadow-md mb-4
+                        ${currentEntry ? 'bg-red-500 shadow-red-500/20' : 'bg-blue-600 shadow-blue-600/20'}
+                    `}
                     onPress={handleClockAction}
-                // disabled={!currentEntry && !isWithinRange} // Allow click to show validation errors
                 >
                     {clocking ? (
                         <ActivityIndicator color="white" />
                     ) : (
                         <>
-                            <Ionicons name={currentEntry ? "log-out-outline" : "log-in-outline"} size={24} color="white" style={{ marginRight: 8 }} />
-                            <Text style={styles.buttonText}>
+                            <Ionicons name={currentEntry ? "log-out-outline" : "log-in-outline"} size={22} color="white" style={{ marginRight: 8 }} />
+                            <Text className="text-white text-lg font-bold tracking-wide">
                                 {currentEntry ? "CLOCK OUT" : "CLOCK IN"}
                             </Text>
                         </>
@@ -285,153 +289,11 @@ export default function ClockScreen() {
                 </TouchableOpacity>
 
                 {!currentEntry && !isWithinRange && nearestSite && (
-                    <Text style={styles.warningText}>
+                    <Text className="text-red-500 text-sm font-medium text-center px-4">
                         You must be within range of a site to clock in.
                     </Text>
                 )}
-
             </ScrollView>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    outerContainer: {
-        flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    container: {
-        flexGrow: 1,
-        padding: 20,
-        backgroundColor: '#f8fafc',
-        alignItems: 'center',
-        paddingTop: 10,
-    },
-    headerGradient: {
-        paddingTop: 64, // pt-16
-        paddingBottom: 32, // pb-8
-        paddingHorizontal: 24, // px-6
-        borderBottomLeftRadius: 24, // rounded-b-3xl
-        borderBottomRightRadius: 24, // rounded-b-3xl
-        marginBottom: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: 'white',
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: '#dbeafe',
-        marginTop: 4,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    card: {
-        width: '100%',
-        padding: 24,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    cardActive: {
-        backgroundColor: '#dcfce7',
-        borderWidth: 1,
-        borderColor: '#22c55e',
-    },
-    cardInactive: {
-        backgroundColor: 'white',
-        // borderWidth: 1,
-        // borderColor: '#e2e8f0',
-    },
-    statusLabel: {
-        fontSize: 14,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        color: '#64748b',
-        marginBottom: 8,
-    },
-    statusText: {
-        fontSize: 28,
-        fontWeight: '900',
-        color: '#0f172a',
-    },
-    timeText: {
-        marginTop: 8,
-        fontSize: 16,
-        color: '#334155',
-    },
-    locationCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        padding: 16,
-        borderRadius: 12,
-        width: '100%',
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-    },
-    locationTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#0f172a',
-    },
-    distanceText: {
-        fontSize: 14,
-        marginTop: 2,
-    },
-    textGreen: {
-        color: '#16a34a',
-        fontWeight: 'bold',
-    },
-    textRed: {
-        color: '#dc2626',
-    },
-    button: {
-        flexDirection: 'row',
-        width: '100%',
-        padding: 18,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 4,
-    },
-    btnIn: {
-        backgroundColor: '#2563eb',
-    },
-    btnOut: {
-        backgroundColor: '#ef4444',
-    },
-    btnDisabled: {
-        backgroundColor: '#94a3b8',
-        opacity: 0.7,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    warningText: {
-        marginTop: 16,
-        color: '#ef4444',
-        textAlign: 'center',
-    },
-});

@@ -24,7 +24,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { FORM_TEMPLATES } from "@/lib/constants/templates";
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -35,7 +34,7 @@ function SubmitButton() {
     );
 }
 
-export function CreateFormButton({ orgId }: { orgId: string }) {
+export function CreateFormButton({ orgId, templates = [] }: { orgId: string, templates?: any[] }) {
     const [open, setOpen] = useState(false);
     const [state, formAction] = useFormState(createForm, null);
 
@@ -74,11 +73,17 @@ export function CreateFormButton({ orgId }: { orgId: string }) {
                                 <SelectValue placeholder="Select a template" />
                             </SelectTrigger>
                             <SelectContent>
-                                {Object.entries(FORM_TEMPLATES).map(([key, template]) => (
-                                    <SelectItem key={key} value={key}>
+                                <SelectItem value="BLANK">
+                                    <div className="flex flex-col items-start text-left">
+                                        <span className="font-medium">Blank Form</span>
+                                        <span className="text-xs text-muted-foreground">Start entirely from scratch.</span>
+                                    </div>
+                                </SelectItem>
+                                {templates.map((template) => (
+                                    <SelectItem key={template.id} value={template.id}>
                                         <div className="flex flex-col items-start text-left">
-                                            <span className="font-medium">{template.label}</span>
-                                            <span className="text-xs text-muted-foreground">{template.description}</span>
+                                            <span className="font-medium">{template.title}</span>
+                                            <span className="text-xs text-muted-foreground">{template.description || template.category || "Standard template"}</span>
                                         </div>
                                     </SelectItem>
                                 ))}

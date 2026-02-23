@@ -177,12 +177,30 @@ export async function submitForm(formUrl: string, content: string): Promise<Acti
 
         const parsedContent = JSON.parse(content);
 
+        // Extract system fields from frontend FormBuilder payload (if provided as hidden inputs)
+        const assignmentId = parsedContent.assignment_id || parsedContent.assignmentId || null;
+        const taskId = parsedContent.task_id || parsedContent.taskId || null;
+        const visitId = parsedContent.visit_id || parsedContent.visitId || null;
+
         const { data: submission, error } = await supabase.from("submissions").insert({
             form_id: form.id,
+            assignment_id: assignmentId,
+            visit_id: visitId,
             data: parsedContent,
         }).select().single();
 
         if (error) return { success: false, error: error.message };
+
+        // Handle Lifecycle Updates locally to replace the old database trigger
+        if (taskId) {
+            await supabase.from("tasks").update({ status: "DONE" }).eq("id", taskId);
+        } else if (assignmentId) {
+            await supabase.from("form_assignments").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", assignmentId);
+        }
+
+        if (visitId) {
+            await supabase.from("visits").update({ status: "completed" }).eq("id", visitId);
+        }
 
         // Trigger Automations (Fire and Forget)
         try {

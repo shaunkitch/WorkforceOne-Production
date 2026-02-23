@@ -18,7 +18,7 @@ import { useOrg } from '@/contexts/OrgContext';
 
 export default function FormEntry() {
     const params = useLocalSearchParams();
-    const { formId, formName, assignmentId, visitId, clientId } = params;
+    const { formId, formName, assignmentId, visitId, clientId, taskId } = params;
     // Use state for assignmentId so we can clear it upon "Submit Another"
     const [activeAssignmentId, setActiveAssignmentId] = useState(assignmentId);
     const { org } = useOrg();
@@ -121,6 +121,18 @@ export default function FormEntry() {
 
             // Trigger Sync in Background (Fire & Forget)
             offlineStore.syncOutbox().catch(err => console.log("Background sync error", err));
+
+            // If a Task ID was provided, mark the task as DONE
+            if (taskId) {
+                try {
+                    await supabase
+                        .from('tasks')
+                        .update({ status: 'DONE' })
+                        .eq('id', taskId);
+                } catch (taskErr) {
+                    console.error("Failed to mark task as DONE:", taskErr);
+                }
+            }
 
             // Success Feedback
             showToast('Form saved to outbox!', 'success');

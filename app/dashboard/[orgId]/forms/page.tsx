@@ -8,7 +8,14 @@ import { formatDistanceToNow } from "date-fns";
 import { FileText, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function FormsPage({ params }: { params: { orgId: string } }) {
+export default async function FormsPage({ params }: { params: { orgId: string } }) {
+    const supabase = createClient();
+    const { data: dbTemplates } = await supabase
+        .from("forms")
+        .select("id, title, description, category")
+        .eq("is_template", true)
+        .order("title", { ascending: true });
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -18,7 +25,7 @@ export default function FormsPage({ params }: { params: { orgId: string } }) {
                         Manage your forms and submissions.
                     </p>
                 </div>
-                <CreateFormButton orgId={params.orgId} />
+                <CreateFormButton orgId={params.orgId} templates={dbTemplates || []} />
             </div>
 
             <Suspense fallback={<FormsListSkeleton />}>

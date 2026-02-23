@@ -70,44 +70,28 @@ export default function Dashboard() {
   const userId = userData?.user?.id;
   const userName = userData?.name;
 
-  // 2. Assignments Query
-  const { data: assignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useQuery({
-    queryKey: ['assignments', userId],
+  // 2. Tasks Query (replaces legacy assignments query)
+  const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
+    queryKey: ['tasks', userId],
     enabled: !!userId,
     queryFn: async () => {
       if (!userId) return { list: [], count: 0 };
 
-      const { data: list } = await supabase
-        .from('form_assignments')
-        .select(`id, status, forms (id, name, description, icon)`)
-        .eq('user_id', userId)
-        .eq('status', 'pending')
+      const { data: list, count } = await supabase
+        .from('tasks')
+        .select(`*, form:forms(title)`, { count: 'exact' })
+        .eq('assignee_id', userId)
+        .neq('status', 'DONE')
         .order('created_at', { ascending: false })
         .limit(5);
 
-      const { count } = await supabase
-        .from('form_assignments')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('status', 'pending');
-
-      const mappedList: any[] = list ? (list as any[]).map((a: any) => ({
-        ...a.forms,
-        status: a.status,
-        assignment_id: a.id,
-        // Helper specifically for UI mapping
-        name: Array.isArray(a.forms) ? a.forms[0]?.name : a.forms?.name,
-        description: Array.isArray(a.forms) ? a.forms[0]?.description : a.forms?.description,
-        icon: Array.isArray(a.forms) ? a.forms[0]?.icon : a.forms?.icon,
-      })) : [];
-
-      return { list: mappedList, count: count || 0 };
+      return { list: list || [], count: count || 0 };
     }
   });
 
   // 3. Stats derived from queries
   const stats = {
-    pending: assignmentsData?.count || 0,
+    pending: tasksData?.count || 0,
     dueToday: 0,
     completed: 0
   };
@@ -165,8 +149,8 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!userId) return [];
       const { data } = await supabase
-        .from('form_submissions')
-        .select('id, form_id, created_at, forms(name)')
+        .from('submissions')
+        .select('id, form_id, created_at, forms(title)') // Note: forms table usually has title or name
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(3);
@@ -174,14 +158,14 @@ export default function Dashboard() {
       return (data as any[])?.map((s: any) => ({
         id: s.id,
         form_id: s.form_id,
-        title: s.forms?.name || 'Untitled',
+        title: s.forms?.title || s.forms?.name || 'Untitled', // handle both title/name to be safe
         date: s.created_at
       })) || [];
     }
   });
 
   const todaysVisits = visitsData?.list || [];
-  const assignedForms = assignmentsData?.list || [];
+  const assignedTasks = tasksData?.list || [];
   const recentSubmissions = recentSubmissionsData || [];
 
   const [refreshing, setRefreshing] = useState(false);
@@ -190,12 +174,12 @@ export default function Dashboard() {
     setRefreshing(true);
     await Promise.all([
       refreshOrg(),
-      refetchAssignments(),
+      refetchTasks(),
       refetchVisits(),
       refetchSubmissions()
     ]);
     setRefreshing(false);
-  }, [refreshOrg, refetchAssignments, refetchVisits, refetchSubmissions]);
+  }, [refreshOrg, refetchTasks, refetchVisits, refetchSubmissions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -312,6 +296,15 @@ export default function Dashboard() {
             <Text className="text-xs font-semibold text-slate-600">New Entry</Text>
           </TouchableOpacity>
 
+          <View className="w-[1px] h-10 bg-slate-100" />
+
+          <TouchableOpacity className="items-center space-y-2 flex-1" onPress={() => router.push('/(tabs)/tasks')}>
+            <View className="w-12 h-12 bg-indigo-50 rounded-full items-center justify-center">
+              <Ionicons name="checkbox" size={22} color="#4f46e5" />
+            </View>
+            <Text className="text-xs font-semibold text-slate-600">Tasks</Text>
+          </TouchableOpacity>
+
           {(features?.security) && (
             <>
               <View className="w-[1px] h-10 bg-slate-100" />
@@ -374,39 +367,51 @@ export default function Dashboard() {
           </View>
         )}
 
-        {/* Assigned Forms */}
+        {/* Assigned Tasks */}
         <View className="mb-8">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold text-slate-800">Assigned Tasks</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/forms')}>
+            <Text className="text-lg font-bold text-slate-800">My Pending Tasks</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/tasks')}>
               <Text className="text-blue-600 font-medium text-sm">View All</Text>
             </TouchableOpacity>
           </View>
 
-          {assignedForms.length === 0 ? (
+          {assignedTasks.length === 0 ? (
             <View className="bg-white p-8 rounded-2xl items-center justify-center border border-slate-100 border-dashed">
-              <Ionicons name="clipboard-outline" size={48} color="#e2e8f0" />
-              <Text className="text-slate-400 mt-4 text-center">No assignments pending.</Text>
-              <Text className="text-slate-400 text-xs mt-1 text-center">Enjoy your day!</Text>
+              <Ionicons name="checkmark-done-circle-outline" size={48} color="#e2e8f0" />
+              <Text className="text-slate-400 mt-4 text-center">No tasks assigned to you.</Text>
+              <Text className="text-slate-400 text-xs mt-1 text-center">You're all caught up!</Text>
             </View>
           ) : (
             <View className="space-y-3">
-              {assignedForms.map((form) => (
-                <TouchableOpacity key={form.assignment_id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex-row items-center active:scale-[0.98] transition-transform">
+              {assignedTasks.map((task) => (
+                <TouchableOpacity
+                  key={task.id}
+                  className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex-row items-center active:scale-[0.98] transition-transform"
+                  onPress={() => {
+                    if (task.form_id) {
+                      router.push({
+                        pathname: '/(tabs)/form_entry',
+                        params: { formId: task.form_id, formName: task.form?.title || 'Operational Form', taskId: task.id }
+                      });
+                    } else {
+                      router.push('/(tabs)/tasks');
+                    }
+                  }}
+                >
                   <View className="w-12 h-12 bg-blue-50 rounded-xl items-center justify-center mr-4">
-                    {/* Use icon from DB or default */}
-                    <Ionicons name={form.icon || "document-text"} size={22} color="#2563eb" />
+                    <Ionicons name={task.form_id ? "clipboard-outline" : "checkbox-outline"} size={22} color="#2563eb" />
                   </View>
                   <View className="flex-1">
                     <View className="flex-row justify-between items-start">
-                      <Text className="font-bold text-slate-800 text-base flex-1 mr-2" numberOfLines={1}>{form.name}</Text>
-                      {form.status === 'pending' && (
+                      <Text className="font-bold text-slate-800 text-base flex-1 mr-2" numberOfLines={1}>{task.title}</Text>
+                      {task.status !== 'DONE' && (
                         <View className="bg-amber-100 px-2 py-0.5 rounded-full">
-                          <Text className="text-[10px] font-bold text-amber-700 uppercase">Pending</Text>
+                          <Text className="text-[10px] font-bold text-amber-700 uppercase">{task.status.replace('_', ' ')}</Text>
                         </View>
                       )}
                     </View>
-                    <Text className="text-slate-500 text-sm mt-1" numberOfLines={1}>{form.description || 'No description provided'}</Text>
+                    <Text className="text-slate-500 text-sm mt-1" numberOfLines={1}>{task.description || 'No description provided'}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
                 </TouchableOpacity>
