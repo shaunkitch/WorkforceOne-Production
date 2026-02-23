@@ -98,7 +98,7 @@ export function OrgProvider({ children, session }: { children: React.ReactNode; 
 
             const { data: rawData, error } = await supabase
                 .from('organization_members')
-                .select('metadata, organizations(id, name, slug, brand_color, logo_url, app_logo_url, features)')
+                .select('metadata, organizations(id, name, slug, brand_color, logo_url, app_logo_url, features, currency)')
                 .eq('user_id', session.user.id)
                 .maybeSingle();
 

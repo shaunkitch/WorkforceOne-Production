@@ -17,7 +17,7 @@ async function applyMigration() {
         await client.connect();
         console.log('Connected to database.');
 
-        const sqlPath = path.join(__dirname, 'migration_security_module.sql');
+        const sqlPath = path.join(__dirname, 'enable_public_branding.sql');
         const sql = fs.readFileSync(sqlPath, 'utf8');
 
         console.log('Executing migration...');

@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getTasks, getTaskAssignees } from "@/lib/actions/tasks";
+import { KanbanBoard } from "@/components/dashboard/kanban-board";
 import {
   Card,
   CardContent,
@@ -12,6 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { FileText, MousePointerClick, View } from "lucide-react";
 
 export default async function DashboardOverview({ params }: { params: { orgId: string } }) {
+  const [initialTasks, assignees] = await Promise.all([
+    getTasks(params.orgId),
+    getTaskAssignees(params.orgId)
+  ]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -43,6 +50,13 @@ export default async function DashboardOverview({ params }: { params: { orgId: s
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <Separator />
+
+      <div>
+        <h3 className="text-xl font-bold tracking-tight mb-4">Task Board</h3>
+        <KanbanBoard orgId={params.orgId} initialTasks={initialTasks} assignees={assignees} />
       </div>
     </div>
   );

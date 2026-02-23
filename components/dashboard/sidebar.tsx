@@ -152,6 +152,11 @@ export function Sidebar({ orgId, brandColor, logoUrl, orgName = "WorkforceOne", 
                     icon: Receipt,
                     href: "/quotes",
                 },
+                {
+                    label: "Invoices",
+                    icon: Banknote,
+                    href: "/invoices",
+                },
             ]
         },
         {

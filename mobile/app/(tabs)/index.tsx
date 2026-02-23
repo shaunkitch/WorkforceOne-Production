@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, RefreshControl, Alert, Linking, Platform } from 'react-native';
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,11 +12,42 @@ import { offlineStore } from '@/lib/offline-store';
 import { NetworkBanner } from '@/components/ui/NetworkBanner';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Visit } from '@/types/app';
+
+export type Visit = {
+  id: string;
+  client_id: string;
+  title: string;
+  scheduled_at: string;
+  status: string;
+  clients?: any;
+};
 
 export default function Dashboard() {
   const { org, isOnline, unreadCount, features, refreshOrg, loading } = useOrg();
   const queryClient = useQueryClient();
+
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ['40%'], []);
+
+  const handlePresentModalPress = useCallback(() => {
+    console.log("Presenting bottom sheet modal!");
+    bottomSheetModalRef.current?.present();
+  }, []);
+
+  const handleDismissModalPress = useCallback(() => {
+    bottomSheetModalRef.current?.dismiss();
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    []
+  );
 
   // 1. User Profile Query
   const { data: userData, isLoading: userLoading } = useQuery({
@@ -30,7 +62,7 @@ export default function Dashboard() {
         .eq('id', user.id)
         .single();
 
-      return { user, name: profile?.full_name || user.email?.split('@')[0] };
+      return { user, name: (profile as any)?.full_name || user.email?.split('@')[0] };
     },
     staleTime: 1000 * 60 * 60 // 1 hour
   });
@@ -59,14 +91,14 @@ export default function Dashboard() {
         .eq('user_id', userId)
         .eq('status', 'pending');
 
-      const mappedList: any[] = list ? list.map(a => ({
+      const mappedList: any[] = list ? (list as any[]).map((a: any) => ({
         ...a.forms,
         status: a.status,
         assignment_id: a.id,
         // Helper specifically for UI mapping
-        name: Array.isArray(a.forms) ? a.forms[0]?.name : (a.forms as any)?.name,
-        description: Array.isArray(a.forms) ? a.forms[0]?.description : (a.forms as any)?.description,
-        icon: Array.isArray(a.forms) ? a.forms[0]?.icon : (a.forms as any)?.icon,
+        name: Array.isArray(a.forms) ? a.forms[0]?.name : a.forms?.name,
+        description: Array.isArray(a.forms) ? a.forms[0]?.description : a.forms?.description,
+        icon: Array.isArray(a.forms) ? a.forms[0]?.icon : a.forms?.icon,
       })) : [];
 
       return { list: mappedList, count: count || 0 };
@@ -139,10 +171,10 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(3);
 
-      return data?.map(s => ({
+      return (data as any[])?.map((s: any) => ({
         id: s.id,
         form_id: s.form_id,
-        title: (s.forms as any)?.name || 'Untitled',
+        title: s.forms?.name || 'Untitled',
         date: s.created_at
       })) || [];
     }
@@ -273,7 +305,7 @@ export default function Dashboard() {
       >
         {/* Quick Actions */}
         <View className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex-row justify-between items-center">
-          <TouchableOpacity className="items-center space-y-2 flex-1" onPress={() => router.push('/(tabs)/forms')}>
+          <TouchableOpacity className="items-center space-y-2 flex-1" onPress={handlePresentModalPress}>
             <View className="w-12 h-12 bg-blue-50 rounded-full items-center justify-center">
               <Ionicons name="add" size={24} color="#2563eb" />
             </View>
@@ -305,7 +337,7 @@ export default function Dashboard() {
         {/* Today's Visits */}
         {features?.crm && (
           <View className="mb-6">
-            <Text className="text-lg font-bold text-slate-800 mb-4">Today's Visits</Text>
+            <Text className="text-lg font-bold text-slate-800 mb-4">Today&apos;s Visits</Text>
             {todaysVisits.length === 0 ? (
               <View className="bg-white p-6 rounded-2xl items-center justify-center border border-slate-100 shadow-sm">
                 <Text className="text-slate-400">No visits scheduled for today.</Text>
@@ -418,6 +450,63 @@ export default function Dashboard() {
           </View>
         )}
       </ScrollView>
+
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        snapPoints={snapPoints}
+        backdropComponent={renderBackdrop}
+        enablePanDownToClose={true}
+      >
+        <BottomSheetView className="flex-1 p-6" style={{ minHeight: 300 }}>
+          <Text className="text-xl font-bold text-slate-800 mb-6">Create New</Text>
+
+          <View className="flex-row flex-wrap justify-between">
+            <TouchableOpacity
+              className="items-center bg-blue-50 p-4 rounded-xl w-[48%] mb-4 border border-blue-100 active:scale-95 transition-transform"
+              onPress={() => {
+                handleDismissModalPress();
+                router.push('/(tabs)/forms');
+              }}
+            >
+              <Ionicons name="document-text" size={32} color="#2563eb" />
+              <Text className="font-semibold text-blue-700 mt-2">Form</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="items-center bg-emerald-50 p-4 rounded-xl w-[48%] mb-4 border border-emerald-100 active:scale-95 transition-transform"
+              onPress={() => {
+                handleDismissModalPress();
+                router.push('/quotes');
+              }}
+            >
+              <Ionicons name="calculator" size={32} color="#10b981" />
+              <Text className="font-semibold text-emerald-700 mt-2">Quote</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="items-center bg-purple-50 p-4 rounded-xl w-[48%] border border-purple-100 active:scale-95 transition-transform"
+              onPress={() => {
+                handleDismissModalPress();
+                router.push('/invoices');
+              }}
+            >
+              <Ionicons name="receipt" size={32} color="#9333ea" />
+              <Text className="font-semibold text-purple-700 mt-2">Invoice</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="items-center bg-amber-50 p-4 rounded-xl w-[48%] border border-amber-100 active:scale-95 transition-transform"
+              onPress={() => {
+                handleDismissModalPress();
+                router.push('/inventory' as any);
+              }}
+            >
+              <Ionicons name="cube" size={32} color="#d97706" />
+              <Text className="font-semibold text-amber-700 mt-2">Inventory</Text>
+            </TouchableOpacity>
+          </View>
+        </BottomSheetView>
+      </BottomSheetModal>
     </View>
   );
 }

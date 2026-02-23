@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
 import { setDefaultResultOrder } from 'node:dns'
@@ -62,7 +63,7 @@ export const createAdminClient = cache(() => {
     );
   }
 
-  return createClient<Database>(
+  return createSupabaseClient<Database>(
     supabaseUrl,
     supabaseServiceKey,
     {
