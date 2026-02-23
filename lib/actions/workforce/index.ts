@@ -82,7 +82,15 @@ export async function createUser(orgId: string, data: {
             }
         });
 
-        if (authError) throw new Error("Auth Error: " + authError.message);
+        if (authError) {
+            if (authError.message.includes("already registered") || authError.message.includes("already been registered")) {
+                throw new Error(`A user with email "${data.email}" already exists. Use a different email address.`);
+            }
+            if (authError.message.includes("not allowed")) {
+                throw new Error("User creation is blocked. Ensure the Email provider is enabled in your Supabase Auth settings.");
+            }
+            throw new Error("Auth Error: " + authError.message);
+        }
         const newUser = userData.user;
 
         // 2. Generate Employee Number
