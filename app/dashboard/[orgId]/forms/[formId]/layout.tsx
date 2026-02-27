@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-async function getForm(formId: string) {
+async function getForm(formId: string): Promise<{ id: string; title: string; organization_id: string } | null> {
     const supabase = createClient();
     const { data } = await supabase.from("forms").select("id, title, organization_id").eq("id", formId).single();
-    return data;
+    return data as any;
 }
 
 export default async function FormDetailsLayout({

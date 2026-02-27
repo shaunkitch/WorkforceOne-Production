@@ -33,7 +33,7 @@ export default async function DashboardOverview({ params }: { params: { orgId: s
         <StatsCards orgId={params.orgId} />
       </Suspense>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
         <div className="col-span-4 space-y-4">
           <Suspense fallback={<Skeleton className="h-[200px]" />}>
             <MyAssignments />

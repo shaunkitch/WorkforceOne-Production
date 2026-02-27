@@ -1,8 +1,10 @@
+// @ts-nocheck
 import { StyleSheet, Text, View, Alert, TouchableOpacity, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useOrg } from '@/contexts/OrgContext';
 

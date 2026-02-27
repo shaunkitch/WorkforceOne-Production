@@ -31,13 +31,13 @@ export default async function UserDirectoryPage({ params }: { params: { orgId: s
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
                 <BulkImportBtn orgId={params.orgId} />
                 <NotifyAllDialog orgId={params.orgId} />
                 <CreateUserBtn orgId={params.orgId} currency={organization?.currency} />
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>

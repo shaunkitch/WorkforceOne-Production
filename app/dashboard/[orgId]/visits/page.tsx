@@ -13,12 +13,10 @@ export default async function VisitsPage({ params }: { params: { orgId: string }
     };
 
     return (
-        <div className="flex-1 space-y-4 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Visits & Appointments</h2>
-                <div className="flex items-center space-x-2">
-                    <VisitDialog orgId={params.orgId} />
-                </div>
+        <div className="flex-1 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Visits &amp; Appointments</h2>
+                <VisitDialog orgId={params.orgId} />
             </div>
 
             <div className="flex items-center py-4">

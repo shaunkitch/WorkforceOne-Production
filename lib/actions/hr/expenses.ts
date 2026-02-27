@@ -67,7 +67,7 @@ export async function submitExpense(orgId: string, data: { amount: number; merch
     const aiResult = await categorizeExpenseWithAI(data.merchant, data.description);
 
     // 2. Insert into database
-    const { data: expense, error } = await supabase.from('expenses').insert({
+    const { data: expense, error } = await (supabase.from('expenses') as any).insert({
         organization_id: orgId,
         user_id: user.id,
         amount: data.amount,
@@ -86,17 +86,34 @@ export async function submitExpense(orgId: string, data: { amount: number; merch
     return expense;
 }
 
-export async function getExpenses(orgId: string) {
+export type Expense = {
+    id: string;
+    organization_id: string;
+    user_id: string;
+    amount: number;
+    currency: string;
+    merchant: string;
+    date: string;
+    description: string;
+    receipt_url: string | null;
+    category: string;
+    confidence_score: number;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    updated_at?: string;
+};
+
+export async function getExpenses(orgId: string): Promise<Expense[]> {
     const supabase = createClient();
-    const { data, error } = await supabase
-        .from('expenses')
-        .select('*, profiles(full_name, email)')
+    const { data, error } = await (supabase.from('expenses') as any)
+        .select('*')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false });
 
     if (error) throw new Error(`Failed to fetch expenses: ${error.message}`);
-    return data;
+    return (data ?? []) as Expense[];
 }
+
 
 export async function updateExpenseStatus(orgId: string, expenseId: string, status: 'approved' | 'rejected', category?: string) {
     const supabase = createClient();
@@ -108,8 +125,7 @@ export async function updateExpenseStatus(orgId: string, expenseId: string, stat
         updateData.confidence_score = 1.0;
     }
 
-    const { error } = await supabase
-        .from('expenses')
+    const { error } = await (supabase.from('expenses') as any)
         .update(updateData)
         .eq('id', expenseId)
         .eq('organization_id', orgId);

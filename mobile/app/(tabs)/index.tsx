@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useCallback, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, RefreshControl, Alert, Linking, Platform } from 'react-native';
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';

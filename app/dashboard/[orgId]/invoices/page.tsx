@@ -13,12 +13,10 @@ export default async function InvoicesPage({ params }: { params: { orgId: string
         new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
 
     return (
-        <div className="flex-1 space-y-4 p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Invoices</h2>
-            </div>
+        <div className="flex-1 space-y-4">
+            <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">Invoices</h2>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <div className="relative w-full overflow-auto">
                     <table className="w-full caption-bottom text-sm">
                         <thead className="[&_tr]:border-b">

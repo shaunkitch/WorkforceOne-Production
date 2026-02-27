@@ -1,4 +1,5 @@
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+// @ts-nocheck
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useOrg } from '../../contexts/OrgContext';

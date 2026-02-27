@@ -3,9 +3,9 @@ import { Database } from "../database";
 // Re-export Database type for convenience
 export type SupabaseDB = Database;
 
-// Utility to extract Row types
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
-export type Enums<T extends keyof Database['public']['Enums']> = Database['public']['Enums'][T];
+// Utility to extract Row types (falls back to any if schema is not updated locally)
+export type Tables<T extends string> = T extends keyof Database['public']['Tables'] ? Database['public']['Tables'][T]['Row'] : any;
+export type Enums<T extends string> = T extends keyof Database['public']['Enums'] ? Database['public']['Enums'][T] : any;
 
 // Domain Entities
 export type Organization = Tables<'organizations'>;

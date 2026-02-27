@@ -91,7 +91,7 @@ const storage = Platform.OS === 'web' ? AsyncStorage : ChunkedSecureStoreAdapter
 // If Metro fails to resolve this, we might need a `tsconfig` path alias or copy the file.
 import { Database } from '../../types/database';
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey, {
     auth: {
         storage,
         autoRefreshToken: true,

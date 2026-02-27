@@ -37,7 +37,7 @@ export default function ExpensesScreen() {
             // To properly mock the AI categorization from the mobile client without NextJS server actions,
             // we'll just insert raw and let admins categorize, or we simulate a simple pass.
             const { error } = await supabase.from('expenses').insert({
-                organization_id: org.id,
+                organization_id: org?.id,
                 user_id: user.id,
                 amount: parseFloat(amount),
                 merchant: merchant,

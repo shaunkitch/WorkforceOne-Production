@@ -8,6 +8,7 @@ export type Json =
 
 export interface Database {
   public: {
+    Enums: Record<string, never>;
     Tables: {
       organizations: {
         Row: {
@@ -517,6 +518,54 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+      }
+      notifications: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          title: string
+          body: string
+          type: string
+          data: Json | null
+          read_at: string | null
+          created_at: string
+        }
+        Insert: { id?: string; organization_id: string; user_id: string; title: string; body: string; type: string; data?: Json | null; read_at?: string | null; created_at?: string }
+        Update: { id?: string; organization_id?: string; user_id?: string; title?: string; body?: string; type?: string; data?: Json | null; read_at?: string | null; created_at?: string }
+      }
+      expenses: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          amount: number
+          currency: string
+          merchant: string
+          date: string
+          category: string | null
+          confidence_score: number | null
+          receipt_url: string | null
+          description: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: { id?: string; organization_id: string; user_id: string; amount: number; currency?: string; merchant: string; date: string; category?: string | null; confidence_score?: number | null; receipt_url?: string | null; description?: string | null; status?: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; organization_id?: string; user_id?: string; amount?: number; currency?: string; merchant?: string; date?: string; category?: string | null; confidence_score?: number | null; receipt_url?: string | null; description?: string | null; status?: string; created_at?: string; updated_at?: string }
+      }
+      sos_alerts: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          location: Json | null
+          status: string
+          resolved_at: string | null
+          created_at: string
+        }
+        Insert: { id?: string; organization_id: string; user_id: string; location?: Json | null; status?: string; resolved_at?: string | null; created_at?: string }
+        Update: { id?: string; organization_id?: string; user_id?: string; location?: Json | null; status?: string; resolved_at?: string | null; created_at?: string }
       }
     }
   }

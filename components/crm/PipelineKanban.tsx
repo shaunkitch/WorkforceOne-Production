@@ -69,6 +69,8 @@ export function PipelineKanban({ orgId, quotes: initialQuotes, columns }: Pipeli
         draft: "bg-slate-100 text-slate-700",
         sent: "bg-blue-100 text-blue-700",
         approved: "bg-green-100 text-green-700",
+        invoiced: "bg-purple-100 text-purple-700",
+        paid: "bg-emerald-100 text-emerald-700",
         rejected: "bg-red-100 text-red-700",
     };
 
@@ -118,7 +120,7 @@ export function PipelineKanban({ orgId, quotes: initialQuotes, columns }: Pipeli
                                 <div className="flex items-start justify-between mb-1.5">
                                     <span className="text-xs font-mono text-muted-foreground">#{quote.number}</span>
                                     <span className="text-sm font-bold text-slate-800">
-                                        ${quote.total_amount.toLocaleString()}
+                                        ${(quote.total_amount || 0).toLocaleString()}
                                     </span>
                                 </div>
                                 <p className="text-sm font-semibold text-slate-800 leading-tight mb-2">
@@ -144,7 +146,7 @@ export function PipelineKanban({ orgId, quotes: initialQuotes, columns }: Pipeli
                                 "rounded-lg border-2 border-dashed border-slate-200 p-4 text-center text-xs text-muted-foreground",
                                 dragOverCol === col.id && "border-blue-300 bg-blue-50/50 text-blue-400"
                             )}>
-                                {dragOverCol === col.id ? "Drop here" : "No quotes"}
+                                {dragOverCol === col.id ? "Drop here" : "No deals"}
                             </div>
                         )}
                     </div>
