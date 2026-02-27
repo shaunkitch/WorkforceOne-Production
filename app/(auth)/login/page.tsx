@@ -30,7 +30,7 @@ function LoginForm() {
   useEffect(() => {
     async function loadBranding() {
       try {
-        const { data, error } = await supabase.rpc('get_public_org_branding', {
+        const { data, error } = await (supabase.rpc as any)('get_public_org_branding', {
           org_identifier: orgParam || null
         })
 
